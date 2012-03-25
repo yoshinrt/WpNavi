@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+  xmlns:android="http://schemas.android.com/apk/res/android">
+	<CheckBoxPreference android:key="key_erase_log" android:title="@string/pref_erase_log"></CheckBoxPreference>
+
+	<ListPreference android:key="key_interval" android:title="@string/pref_interval" android:dialogTitle="@string/pref_interval" android:entries="@array/list_interval" android:entryValues="@array/list_interval"></ListPreference><ListPreference android:key="key_bt_devices" android:dialogTitle="@string/pref_bt_devices" android:title="@string/pref_bt_devices"/>
+</PreferenceScreen>
