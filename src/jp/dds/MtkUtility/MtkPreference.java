@@ -7,7 +7,6 @@ import android.bluetooth.BluetoothDevice;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.res.Configuration;
 import android.os.Bundle;
@@ -18,7 +17,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
-import android.widget.Toast;
 import android.view.View.OnClickListener;
 
 import java.io.File;
@@ -39,8 +37,14 @@ public class MtkPreference extends PreferenceActivity
 	SharedPreferences Pref;
 
 	private static ProgressDialog WaitDialog;
-	
-	static final boolean bDebug = true;
+
+	static final boolean bDebug = MtkUtilityActivity.bDebug;
+
+	static final int	STATE_INIT		= 0x0;
+	static final int	STATE_NORMAL	= 0x1;
+	static final int	STATE_LOG		= 0x2;
+	static final int	STATE_FORMAT	= 0x3;
+	int iState		= STATE_INIT;
 
 	// create
 	@Override
@@ -52,15 +56,16 @@ public class MtkPreference extends PreferenceActivity
 
 		ListInterval	= ( ListPreference	 )getPreferenceScreen().findPreference( "key_interval" );
 		ListBTDevices	= ( ListPreference	 )getPreferenceScreen().findPreference( "key_bt_devices" );
-ListInterval.setEnabled( true );
-		
+		//ListInterval.setEnabled( true );
+
 		// download ボタン無効化
 		(( Button )findViewById( id.button_download )).setEnabled( false );
-		
+
 		/*** Mtk オープン ***/
 		Pref = getPreferenceScreen().getSharedPreferences();
 		Mtk = new MtkDriver( CreateHandler());
-		
+
+		iState = STATE_INIT;
 		Mtk.Open( Pref.getString( "key_bt_devices", "00:00:00:00:00:00" ));
 
 		//////////////////////////////////////////////////////////////////////
@@ -109,7 +114,7 @@ ListInterval.setEnabled( true );
 		WaitDialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
 		WaitDialog.setIndeterminate( false );
 
-		WaitDialog.setMax( Mtk.iLogSize >> 10 );		// 最大値の設定
+		WaitDialog.setMax( Mtk.iLogSize >> 10 );// 最大値の設定
 		WaitDialog.incrementProgressBy( 0 );	// セカンダリ値の設定
 		WaitDialog.setCancelable( false );		// キャンセル設定
 
@@ -120,12 +125,13 @@ ListInterval.setEnabled( true );
 			new DialogInterface.OnClickListener(){
 				public void onClick( DialogInterface dialog, int which ){
 					dialog.cancel();	// ProgressDialog をキャンセル
-					//Mtk.Cancel();		// 実行中の処理をキャンセル
+					iState = STATE_NORMAL;
 				}
 			}
 		);
 		WaitDialog.show();
 
+		iState = STATE_LOG;
 		Mtk.GetLog();
 	}
 
@@ -187,9 +193,9 @@ ListInterval.setEnabled( true );
 				if( bDebug ) Log.d( "MtkUtility", String.format( "MtkPreference::what=%d", Msg.what ));
 				switch( Msg.what ){
 				  case MtkDriver.OPEN_OK:
-					Mtk.GetRecordSize();	// 次，record size 取得
+					if( iState == STATE_INIT ) Mtk.GetRecordSize();	// 次，record size 取得
 					break;
-					
+
 				  case MtkDriver.OPEN_BT_NOT_ENABLED:
 					// BT off 状態
 					startActivityForResult(
@@ -197,45 +203,74 @@ ListInterval.setEnabled( true );
 						REQUEST_ENABLE_BT
 					);
 					break;
-					
+
 				  case MtkDriver.OPEN_FAILED:
 					break;
-					
+
 				  case MtkDriver.GET_LOG_SIZE:
 					// プログレスバー設定
 					ProgressBar progressBar = ( ProgressBar )findViewById( id.progressBar_flash_usage );
 					progressBar.setMax( 4 * 1024 * 1024 );	// 4MB
 					progressBar.setProgress( Msg.arg1 );
 
-					Mtk.GetInterval();	// 次，inteval 取得
+					if( iState == STATE_INIT ) Mtk.GetInterval();	// 次，inteval 取得
 					break;
 
 				  case MtkDriver.GET_INTERVAL:
 					// interval の設定取得
 					ListInterval.setSummary( Double.toString( 1000.0 / Msg.arg1 ));
-					Mtk.GetFailedSector();	// 次，FailedSector
+					if( iState == STATE_INIT ) Mtk.GetFailedSector();	// 次，FailedSector
 					break;
 
 				  case MtkDriver.GET_FAILED_SECTOR:
 					// 初期化が全部完了
-					(( Button )findViewById( id.button_download )).setEnabled( true );
-					ListInterval.setEnabled( true );
+					if( iState == STATE_INIT ){
+						(( Button )findViewById( id.button_download )).setEnabled( true );
+						ListInterval.setEnabled( true );
+						iState = STATE_NORMAL;
+					}
 					break;
 
 				  case MtkDriver.GET_LOG_PROCEEDING:
-					WaitDialog.setProgress( Msg.arg1 >> 10 );
+					if( iState == STATE_LOG ) WaitDialog.setProgress( Msg.arg1 >> 10 );
 					break;
 
 				  case MtkDriver.GET_LOG:
-					Mtk.SaveNMEA( MTKUTIL_ROOT );
-					WaitDialog.dismiss();
+					if( iState == STATE_LOG ){
+						// Log ダウンロード完了，NMEA セーブ開始
+						iState = STATE_NORMAL;
+
+						// format コマンドを並行して投げておく
+						if( Pref.getBoolean( "key_erase_log", false )){
+							Mtk.Format();
+						}
+
+						// セーブ実行
+						Mtk.SaveNMEA( MTKUTIL_ROOT );
+
+						// セーブ完了
+						if( Pref.getBoolean( "key_erase_log", false )){
+							WaitDialog.setMessage( "Erasing flash..." );
+							iState = STATE_FORMAT;
+						}else{
+							WaitDialog.dismiss();
+						}
+					}
+					break;
+
+				  case MtkDriver.FORMAT_OK:
+					if( iState == STATE_FORMAT ){
+						iState = STATE_NORMAL;
+						WaitDialog.dismiss();
+						Mtk.GetRecordSize(); // 次，record size 取得
+					}
 					break;
 				}
 			}
 		};
 		return handler;
 	}
-	
+
 	@Override
 	protected void onActivityResult( int RequestCode, int ResultCode, Intent data ){
 		if( bDebug ) Log.d( "MtkUtility", "onActivityResult" );
@@ -244,6 +279,7 @@ ListInterval.setEnabled( true );
 			ResultCode == Activity.RESULT_OK
 		){
 			// 再 open でも失敗する（；´д⊂）
+			iState = STATE_INIT;
 			Mtk.Open( Pref.getString( "key_bt_devices", "00:00:00:00:00:00" ));
 		}
 	}

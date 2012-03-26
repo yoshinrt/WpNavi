@@ -36,7 +36,7 @@ public class MtkDriver implements Runnable{
 	static final int HEADER_SIZE			= 512;
 	static final int DYNAMIC_PATTERN_SIZE	= 16;
 
-	static final boolean bDebug = true;
+	static final boolean bDebug = MtkUtilityActivity.bDebug;
 	Handler	MsgHandler;
 
 	static final int	OPEN_OK					= 0x0;
@@ -48,6 +48,7 @@ public class MtkDriver implements Runnable{
 	static final int	GET_INTERVAL			= 0x6;
 	static final int	GET_LOG					= 0x7;
 	static final int	GET_LOG_PROCEEDING		= 0x8;
+	static final int	FORMAT_OK				= 0x9;
 
 	/*** コンストラクタ ************************************************/
 
@@ -102,14 +103,14 @@ public class MtkDriver implements Runnable{
 	/*** close **********************************************************/
 
 	int Close(){
-		KillThread();
-
 		try{
 			if( BTSock != null ){
 				BTSock.close();
 				BTSock = null;
 			}
 		}catch( IOException e ){}
+
+		KillThread();
 		return 0;
 	}
 
@@ -234,6 +235,7 @@ public class MtkDriver implements Runnable{
 		bKillThread = true;
 		try{
 			while( bKillThread && ReadThread != null && ReadThread.isAlive()){
+				ReadThread.interrupt();
 				Thread.sleep( 100 );
 			}
 		}catch( InterruptedException e ){}
@@ -270,6 +272,12 @@ public class MtkDriver implements Runnable{
 		if( OutStream == null ) return;
 		LogBuf = new byte[ iLogSize ];
 		SendCmd( "PMTK182,7,0,%X", iLogSize );	// READ LOG
+	}
+
+	void Format(){
+		if( OutStream == null ) return;
+		SendCmd( "PMTK182,5" );		// stop logging
+		SendCmd( "PMTK182,6,1" );	// format all
 	}
 
 	// バイナリログセーブ
@@ -311,6 +319,8 @@ public class MtkDriver implements Runnable{
 
 	void ParseCmd( byte [] Buf, int iStart, int iEnd ){
 		Message Msg = null;
+		int iNum1;
+
 		if( bDebug ) DebugMsg( ">>>[%s]\n", new String( Buf, iStart, iEnd - iStart ));
 
 		// $PMTK 以外は無視
@@ -324,8 +334,14 @@ public class MtkDriver implements Runnable{
 			if( bDebug ) DebugMsg( "%08X\n", iCmd );
 
 			switch( iCmd ){
-			  case 0x00010182:	// return cmd status
-				if( ParseHex( Buf ) == 0x7 ) MsgHandler.sendEmptyMessage( GET_LOG );
+			  case 0x00010182:
+				if(( iNum1 = ParseHex( Buf )) == 0x7 ){
+					// read log completed
+					MsgHandler.sendEmptyMessage( GET_LOG );
+				}else if( iNum1 == 6 ){
+					// format completed
+					MsgHandler.sendEmptyMessage( FORMAT_OK );
+				}
 				break;
 
 			  case 0x00010300:	// return set interval
