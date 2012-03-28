@@ -132,7 +132,7 @@ public class MtkPreference extends PreferenceActivity
 		WaitDialog.show();
 
 		iState = STATE_LOG;
-		Mtk.GetLog();
+		Mtk.SaveNMEA( MTKUTIL_ROOT );
 	}
 
 	// callback 登録・解除
@@ -166,9 +166,12 @@ public class MtkPreference extends PreferenceActivity
 		SetupSummery( Pref, key );
 
 		if( key.equals( "key_interval" )){
-			Mtk.SetInterval(( int )( 1000.0 / Double.parseDouble(
-				Pref.getString( key, "1" )
-			)));
+			int ms = ( int )( 1000.0 / Double.parseDouble( Pref.getString( key, "1" )));
+			Mtk.SetInterval( ms );
+			
+			int Hz = 2000 / ms;
+			if( Hz == 0 ) Hz = 1;
+			Mtk.SetNMEAInterval( Hz );
 		}
 	}
 
@@ -193,7 +196,11 @@ public class MtkPreference extends PreferenceActivity
 				if( bDebug ) Log.d( "MtkUtility", String.format( "MtkPreference::what=%d", Msg.what ));
 				switch( Msg.what ){
 				  case MtkDriver.OPEN_OK:
-					if( iState == STATE_INIT ) Mtk.GetRecordSize();	// 次，record size 取得
+					if( iState == STATE_INIT ){
+						Mtk.GetRecordSize();	// record size 取得
+						Mtk.GetInterval();		// inteval 取得
+						Mtk.GetFailedSector();	// FailedSector
+					}
 					break;
 
 				  case MtkDriver.OPEN_BT_NOT_ENABLED:
@@ -213,13 +220,11 @@ public class MtkPreference extends PreferenceActivity
 					progressBar.setMax( 4 * 1024 * 1024 );	// 4MB
 					progressBar.setProgress( Msg.arg1 );
 
-					if( iState == STATE_INIT ) Mtk.GetInterval();	// 次，inteval 取得
 					break;
 
 				  case MtkDriver.GET_INTERVAL:
 					// interval の設定取得
 					ListInterval.setSummary( Double.toString( 1000.0 / Msg.arg1 ));
-					if( iState == STATE_INIT ) Mtk.GetFailedSector();	// 次，FailedSector
 					break;
 
 				  case MtkDriver.GET_FAILED_SECTOR:
@@ -240,17 +245,10 @@ public class MtkPreference extends PreferenceActivity
 						// Log ダウンロード完了，NMEA セーブ開始
 						iState = STATE_NORMAL;
 
-						// format コマンドを並行して投げておく
-						if( Pref.getBoolean( "key_erase_log", false )){
-							Mtk.Format();
-						}
-
-						// セーブ実行
-						Mtk.SaveNMEA( MTKUTIL_ROOT );
-
 						// セーブ完了
 						if( Pref.getBoolean( "key_erase_log", false )){
 							WaitDialog.setMessage( "Erasing flash..." );
+							Mtk.Format();
 							iState = STATE_FORMAT;
 						}else{
 							WaitDialog.dismiss();

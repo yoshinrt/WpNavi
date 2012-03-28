@@ -22,10 +22,11 @@ public class MtkDriver implements Runnable{
 
 	// Mtk data
 	volatile int	iLogSize		= -1;
+
 	byte [] FailSector	= null;
 	byte [] LogBuf		= null;
 	volatile int		iInterval;
-	volatile int		iStartAddr;
+	volatile int		iLogReadSize;
 
 	BluetoothDevice device;
 	BluetoothSocket BTSock = null;
@@ -49,6 +50,7 @@ public class MtkDriver implements Runnable{
 	static final int	GET_LOG					= 0x7;
 	static final int	GET_LOG_PROCEEDING		= 0x8;
 	static final int	FORMAT_OK				= 0x9;
+	static final int	SET_NMEA_INTERVAL		= 0xA;
 
 	/*** コンストラクタ ************************************************/
 
@@ -124,6 +126,11 @@ public class MtkDriver implements Runnable{
 		int		iReadSize;
 		int		i;
 
+		//BufferedOutputStream  fsDebugLog = null;
+		//try{
+		//	fsDebugLog    = new BufferedOutputStream( new FileOutputStream( "/sdcard/z" ));
+		//}catch( Exception e ){ DebugMsg( " " + e ); }
+
 		if( bDebug ) Log.d( "MtkUtility", "MtkDriver::run() started" );
 		/*** open 処理 ***/
 		// If the adapter is null, then Bluetooth is not supported
@@ -187,10 +194,12 @@ public class MtkDriver implements Runnable{
 			while( !bKillThread ){
 				// buf の end ptr の続きからデータを読む
 				iReadSize = InStream.read( Buf, iSize, iBufSize - iSize );
+				//fsDebugLog.write( Buf, iSize, iReadSize );
 
 				if( iReadSize != 0 ){
 					iSize += iReadSize;
 					iStart = 0;
+					//if( bDebug ) Log.d( "MtkUtility", "BufUsage:" + iSize );
 
 					for(;;){
 						// \n スキップ
@@ -218,7 +227,6 @@ public class MtkDriver implements Runnable{
 							break;
 						}
 					}
-
 				}else{
 					Thread.sleep( 100 );
 				}
@@ -228,6 +236,8 @@ public class MtkDriver implements Runnable{
 		}
 
 		if( bDebug ) Log.d( "MtkUtility", "MtkDriver::run() exit" );
+		//try { fsDebugLog.close(); } catch (IOException e) {}
+
 		bKillThread = false;
 	}
 
@@ -271,7 +281,13 @@ public class MtkDriver implements Runnable{
 	void GetLog(){
 		if( OutStream == null ) return;
 		LogBuf = new byte[ iLogSize ];
+		iLogReadSize = 0;
 		SendCmd( "PMTK182,7,0,%X", iLogSize );	// READ LOG
+	}
+
+	// NMEA 頻度設定
+	void SetNMEAInterval( int iPeriod ){
+		SendCmd( "PMTK314,0,%d,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", iPeriod );
 	}
 
 	void Format(){
@@ -321,10 +337,21 @@ public class MtkDriver implements Runnable{
 		Message Msg = null;
 		int iNum1;
 
-		if( bDebug ) DebugMsg( ">>>[%s]\n", new String( Buf, iStart, iEnd - iStart ));
+		if( Buf[ iStart ] != '$' ){
+			if( bDebug ) DebugMsg( "Wrong output? %02X [%s]", Buf[ iStart ], new String( Buf, iStart, iEnd - iStart ));
+		}
 
 		// $PMTK 以外は無視
-		if( "$PMTK".equals( new String( Buf, iStart, 5 ))){
+		//if( "$PMTK".equals( new String( Buf, iStart, 5 ))){
+		if(
+			Buf[ iStart + 0 ] == '$' &&
+			Buf[ iStart + 1 ] == 'P' &&
+			Buf[ iStart + 2 ] == 'M' &&
+			Buf[ iStart + 3 ] == 'T' &&
+			Buf[ iStart + 4 ] == 'K'
+		){
+			if( bDebug ) DebugMsg( ">>>[%s]\n", new String( Buf, iStart, iEnd - iStart ));
+
 			iParseStart = iStart += 5;
 			iParseEnd	= iEnd;
 
@@ -337,7 +364,7 @@ public class MtkDriver implements Runnable{
 			  case 0x00010182:
 				if(( iNum1 = ParseHex( Buf )) == 0x7 ){
 					// read log completed
-					MsgHandler.sendEmptyMessage( GET_LOG );
+					iLogReadSize = iLogSize;
 				}else if( iNum1 == 6 ){
 					// format completed
 					MsgHandler.sendEmptyMessage( FORMAT_OK );
@@ -376,13 +403,9 @@ public class MtkDriver implements Runnable{
 				break;
 
 			  case 0x01820008:	// log data output
-				iStartAddr = ParseHex( Buf );
-				if( bDebug ) DebugMsg( "get log data: %X\n", iStartAddr );
-				ParseBytes( Buf, LogBuf, iStartAddr, iLogSize - iStartAddr );
-				Msg = new Message();
-				Msg.what	= GET_LOG_PROCEEDING;
-				Msg.arg1	= iStartAddr;
-				MsgHandler.sendMessage( Msg );
+				iLogReadSize = ParseHex( Buf );
+				if( bDebug ) DebugMsg( "get log data: %X\n", iLogReadSize );
+				ParseBytes( Buf, LogBuf, iLogReadSize, iLogSize - iLogReadSize );
 			}
 		}
 	}
@@ -512,8 +535,22 @@ public class MtkDriver implements Runnable{
 	static final int SIZE_RCR		= 2;
 	static final int SIZE_MS		= 2;
 
-	int SaveNMEA( String Dir ){
-		if( bDebug ) DebugMsg( "SaveNMEALog\n" );
+	void SaveNMEA( final String Dir ){
+		GetLog();	// Log ロードコマンド
+
+		// Log セーブスレッド起動
+		new Thread(
+			new Runnable() {
+				@Override
+				public void run(){
+					SaveNMEASub( Dir );
+				}
+			}
+		).start();
+	}
+
+	int SaveNMEASub( String Dir ){
+		if( bDebug ) DebugMsg( "SaveNMEALog:" + Dir + "\n" );
 
 		if( OutStream == null ) return -1;
 
@@ -548,9 +585,9 @@ public class MtkDriver implements Runnable{
 
 		try{
 			int iPtr = 0;
+			int iPtrPrev = -1;
 
 			while( iPtr < iLogSize ){
-
 				/*** セクタ先頭の解析 ***/
 
 				// Failed Sector で無いことを確認
@@ -568,6 +605,11 @@ public class MtkDriver implements Runnable{
 				// 少なくともセクタヘッダの分残りサイズがあるか確認
 				if( iLogSize - iPtr < HEADER_SIZE ) break;
 
+				// 少なくともセクタヘッダの分読んだか確認
+				while( iLogReadSize - iPtr < HEADER_SIZE ) try{
+					Thread.sleep( 100 );
+				}catch( Exception e ){};
+
 				iFormatReg = GetI4( LogBuf, iPtr + 0x2 );
 				iRecordSize = GetRecordSize( iFormatReg );
 				if( bDebug ) DebugMsg( "SaveNMEA:Valid Sector %d: Fmt = %X, Size = %d\n", iPtr / SECTOR_SIZE, iFormatReg, iRecordSize );
@@ -578,8 +620,20 @@ public class MtkDriver implements Runnable{
 				if( iSectorEnd > iLogSize ) iSectorEnd = iLogSize;
 
 				while( iPtr < iSectorEnd ){
+					if(( iPtrPrev & ~0x3FF ) != ( iPtr & ~0x3FF )){
+						iPtrPrev = iPtr;
+						Message Msg = new Message();
+						Msg.what	= GET_LOG_PROCEEDING;
+						Msg.arg1	= iPtrPrev;
+						MsgHandler.sendMessage( Msg );
+					}
+
 					// dynamic setting pattern の検出
 					if( iSectorEnd - iPtr >= DYNAMIC_PATTERN_SIZE ){
+
+						while( iLogReadSize - iPtr < DYNAMIC_PATTERN_SIZE ) try{
+							Thread.sleep( 100 );
+						}catch( Exception e ){};
 
 						// 0xAA x 7 か?
 						for( i = 0; i < 7; ++i ){
@@ -605,6 +659,11 @@ public class MtkDriver implements Runnable{
 						if( bDebug ) DebugMsg( "SaveNMEA: Sector end detected, next = %X\n", iPtr );
 						break;
 					}
+
+					// 通常レコード分のサイズを読んだか検出
+					while( iLogReadSize - iPtr < iRecordSize ) try{
+						Thread.sleep( 100 );
+					}catch( Exception e ){};
 
 					// 通常レコードの検出
 					StrDate = StrTime = StrSpeed = StrBearing = ",";
@@ -703,6 +762,8 @@ public class MtkDriver implements Runnable{
 		}catch( Exception e ){
 			return -1;
 		}
+
+		MsgHandler.sendEmptyMessage( GET_LOG );
 		return 0;
 	}
 
