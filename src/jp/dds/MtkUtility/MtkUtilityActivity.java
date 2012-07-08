@@ -7,7 +7,7 @@ import android.os.Bundle;
 public class MtkUtilityActivity extends Activity {
 
 	private static final int SHOW_CONFIG		= 0;
-	static final boolean bDebug = true;
+	static final boolean bDebug = false; //true;
 
 	@Override
 	protected void onCreate( final Bundle savedInstanceState ){

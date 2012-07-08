@@ -1,6 +1,7 @@
 package jp.dds.MtkUtility;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -30,6 +31,9 @@ public class MtkPreference extends PreferenceActivity
 
 	private ListPreference		ListInterval;
 	private ListPreference		ListBTDevices;
+	
+	private Button	ButtonDownload;
+	private Button	ButtonEraseFlash;
 
 	MtkDriver	Mtk	= null;
 	static final String MTKUTIL_ROOT = "/sdcard/mtk_util";
@@ -58,8 +62,13 @@ public class MtkPreference extends PreferenceActivity
 		ListBTDevices	= ( ListPreference	 )getPreferenceScreen().findPreference( "key_bt_devices" );
 		//ListInterval.setEnabled( true );
 
-		// download ボタン無効化
-		(( Button )findViewById( id.button_download )).setEnabled( false );
+		ButtonDownload = ( Button )findViewById( id.button_download );
+		ButtonDownload.setEnabled( false );			// download ボタン無効化
+		ButtonDownload.setOnClickListener( this );	// download ボタンリスナ登録
+
+		ButtonEraseFlash = ( Button )findViewById( id.button_erase_flash );
+		ButtonEraseFlash.setEnabled( false );			// ボタン無効化
+		ButtonEraseFlash.setOnClickListener( this );	// ボタンリスナ登録
 
 		/*** Mtk オープン ***/
 		Pref = getPreferenceScreen().getSharedPreferences();
@@ -97,42 +106,83 @@ public class MtkPreference extends PreferenceActivity
 
 		ListBTDevices.setEntries( entries );
 		ListBTDevices.setEntryValues( entryValues );
-
-		// download ボタンリスナ登録
-		Button ButtonDownload = ( Button )findViewById( id.button_download );
-		ButtonDownload.setOnClickListener( this );
 	}
 
 	public void onClick( View v ){
 		Log.d( "MtkUtility", "Button" );
-		File dir;
-		dir = new File( MTKUTIL_ROOT ); dir.mkdir();
-
-		// 進行状況ダイアログ
-		WaitDialog = new ProgressDialog( this );
-		WaitDialog.setMessage( "Reading log data..." );
-		WaitDialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
-		WaitDialog.setIndeterminate( false );
-
-		WaitDialog.setMax( Mtk.iLogSize >> 10 );// 最大値の設定
-		WaitDialog.incrementProgressBy( 0 );	// セカンダリ値の設定
-		WaitDialog.setCancelable( false );		// キャンセル設定
-
-		// ProgressDialog の Cancel ボタン
-		WaitDialog.setButton(
-			DialogInterface.BUTTON_NEGATIVE,
-			"Cancel",
-			new DialogInterface.OnClickListener(){
-				public void onClick( DialogInterface dialog, int which ){
-					dialog.cancel();	// ProgressDialog をキャンセル
-					iState = STATE_NORMAL;
+		
+		if( v == ButtonDownload ){
+			File dir;
+			dir = new File( MTKUTIL_ROOT ); dir.mkdir();
+			
+			// 進行状況ダイアログ
+			WaitDialog = new ProgressDialog( this );
+			WaitDialog.setMessage( "Reading log data..." );
+			WaitDialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
+			WaitDialog.setIndeterminate( false );
+			
+			WaitDialog.setMax( Mtk.iLogSize >> 10 );// 最大値の設定
+			WaitDialog.incrementProgressBy( 0 );	// セカンダリ値の設定
+			WaitDialog.setCancelable( false );		// キャンセル設定
+			
+			// ProgressDialog の Cancel ボタン
+			/*
+			WaitDialog.setButton(
+				DialogInterface.BUTTON_NEGATIVE,
+				"Cancel",
+				new DialogInterface.OnClickListener(){
+					public void onClick( DialogInterface dialog, int which ){
+						dialog.cancel();	// ProgressDialog をキャンセル
+						iState = STATE_NORMAL;
+					}
 				}
-			}
-		);
-		WaitDialog.show();
+			);
+			*/
+			WaitDialog.show();
+	
+			iState = STATE_LOG;
+			Mtk.SaveNMEA( MTKUTIL_ROOT );
+		}else if( v == ButtonEraseFlash ){
 
-		iState = STATE_LOG;
-		Mtk.SaveNMEA( MTKUTIL_ROOT );
+			new AlertDialog.Builder( this )
+				.setMessage( "Are you sure you want to erase flash?" )
+				.setCancelable( false )
+				.setPositiveButton( "Yes", new DialogInterface.OnClickListener(){
+					public void onClick( DialogInterface dialog, int id ){
+						dialog.cancel();
+						
+						// 進行状況ダイアログ
+						WaitDialog = new ProgressDialog( MtkPreference.this );
+						WaitDialog.setMessage( "Erasing flash..." );
+						WaitDialog.setProgressStyle( ProgressDialog.STYLE_SPINNER );
+						
+						// ProgressDialog の Cancel ボタン
+						/*
+						WaitDialog.setButton(
+							DialogInterface.BUTTON_NEGATIVE,
+							"Cancel",
+							new DialogInterface.OnClickListener(){
+								public void onClick( DialogInterface dialog, int which ){
+									dialog.cancel();	// ProgressDialog をキャンセル
+									iState = STATE_NORMAL;
+								}
+							}
+						);
+						*/
+						
+						WaitDialog.show();
+						iState = STATE_FORMAT;
+						Mtk.Format();
+					}
+				})
+				.setNegativeButton( "No", new DialogInterface.OnClickListener(){
+					public void onClick( DialogInterface dialog, int id ){
+						dialog.cancel();
+					}
+				})
+				.show();
+
+		}
 	}
 
 	// callback 登録・解除
@@ -219,7 +269,6 @@ public class MtkPreference extends PreferenceActivity
 					ProgressBar progressBar = ( ProgressBar )findViewById( id.progressBar_flash_usage );
 					progressBar.setMax( 4 * 1024 * 1024 );	// 4MB
 					progressBar.setProgress( Msg.arg1 );
-
 					break;
 
 				  case MtkDriver.GET_INTERVAL:
@@ -230,7 +279,8 @@ public class MtkPreference extends PreferenceActivity
 				  case MtkDriver.GET_FAILED_SECTOR:
 					// 初期化が全部完了
 					if( iState == STATE_INIT ){
-						(( Button )findViewById( id.button_download )).setEnabled( true );
+						(( Button )findViewById( id.button_download    )).setEnabled( true );
+						(( Button )findViewById( id.button_erase_flash )).setEnabled( true );
 						ListInterval.setEnabled( true );
 						iState = STATE_NORMAL;
 					}
@@ -244,15 +294,7 @@ public class MtkPreference extends PreferenceActivity
 					if( iState == STATE_LOG ){
 						// Log ダウンロード完了，NMEA セーブ開始
 						iState = STATE_NORMAL;
-
-						// セーブ完了
-						if( Pref.getBoolean( "key_erase_log", false )){
-							WaitDialog.setMessage( "Erasing flash..." );
-							Mtk.Format();
-							iState = STATE_FORMAT;
-						}else{
-							WaitDialog.dismiss();
-						}
+						WaitDialog.dismiss();
 					}
 					break;
 

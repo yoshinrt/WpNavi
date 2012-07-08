@@ -18,7 +18,9 @@ public final class R {
     }
     public static final class id {
         public static final int LinearLayout1=0x7f070000;
-        public static final int button_download=0x7f070003;
+        public static final int button_download=0x7f070004;
+        public static final int button_erase_flash=0x7f070005;
+        public static final int linearLayout2=0x7f070003;
         public static final int progressBar_flash_usage=0x7f070002;
         public static final int textView_flash_usage=0x7f070001;
     }
@@ -28,8 +30,8 @@ public final class R {
     public static final class string {
         public static final int app_name=0x7f060000;
         public static final int button_download=0x7f060001;
+        public static final int button_erase_log=0x7f060003;
         public static final int pref_bt_devices=0x7f060002;
-        public static final int pref_erase_log=0x7f060003;
         public static final int pref_interval=0x7f060004;
         public static final int text_usage=0x7f060005;
     }

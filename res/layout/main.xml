@@ -25,10 +25,23 @@
 	    android:layout_width="fill_parent"
 	    android:layout_height="wrap_content" />
 
-	<Button
-	    android:id="@+id/button_download"
+	<LinearLayout
+	    android:id="@+id/linearLayout2"
 	    android:layout_width="match_parent"
-	    android:layout_height="wrap_content"
-	    android:text="@string/button_download" />
+	    android:layout_height="wrap_content">
+
+		<Button
+		    android:id="@+id/button_download"
+		    android:layout_width="1000dp"
+		    android:layout_height="wrap_content"
+		    android:text="@string/button_download" android:layout_weight="1"/>
+
+		<Button
+		    android:id="@+id/button_erase_flash"
+		    android:layout_width="1000dp"
+		    android:layout_height="wrap_content"
+		    android:text="@string/button_erase_log" android:layout_weight="1"/>
+
+	</LinearLayout>
 
 </LinearLayout>
