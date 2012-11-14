@@ -31,6 +31,7 @@ public class MtkPreference extends PreferenceActivity
 
 	private ListPreference		ListInterval;
 	private ListPreference		ListBTDevices;
+	private EditTextPreference	EditFlashSize;
 	
 	private Button	ButtonDownload;
 	private Button	ButtonEraseFlash;
@@ -58,8 +59,9 @@ public class MtkPreference extends PreferenceActivity
 		setContentView( R.layout.main );
 		addPreferencesFromResource( R.xml.preference );
 
-		ListInterval	= ( ListPreference	 )getPreferenceScreen().findPreference( "key_interval" );
-		ListBTDevices	= ( ListPreference	 )getPreferenceScreen().findPreference( "key_bt_devices" );
+		ListInterval	= ( ListPreference		) getPreferenceScreen().findPreference( "key_interval" );
+		ListBTDevices	= ( ListPreference		) getPreferenceScreen().findPreference( "key_bt_devices" );
+		EditFlashSize	= ( EditTextPreference	) getPreferenceScreen().findPreference( "key_flash_size" );
 		//ListInterval.setEnabled( true );
 
 		ButtonDownload = ( Button )findViewById( id.button_download );
@@ -210,6 +212,10 @@ public class MtkPreference extends PreferenceActivity
 		if( key == null || key.equals( "key_bt_devices" )){
 			ListBTDevices.setSummary( Pref.getString( "key_bt_devices", "Not selected" ));
 		}
+
+		if( key == null || key.equals( "key_flash_size" )){
+			EditFlashSize.setSummary( Pref.getString( "key_flash_size", "4" ));
+		}
 	}
 
 	public void onSharedPreferenceChanged( SharedPreferences Pref, String key ){
@@ -267,7 +273,9 @@ public class MtkPreference extends PreferenceActivity
 				  case MtkDriver.GET_LOG_SIZE:
 					// プログレスバー設定
 					ProgressBar progressBar = ( ProgressBar )findViewById( id.progressBar_flash_usage );
-					progressBar.setMax( 4 * 1024 * 1024 );	// 4MB
+					progressBar.setMax(
+						Integer.parseInt( Pref.getString( "key_flash_size", "4" )) * 1024 * 1024
+					);	// 4MB
 					progressBar.setProgress( Msg.arg1 );
 					break;
 

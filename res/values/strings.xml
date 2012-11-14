@@ -2,9 +2,10 @@
 <resources>
     <string name="app_name">MtkUtility</string>
     <string name="button_download">Download NMEA</string>
-    <string name="pref_bt_devices">Bluetooth device</string>
+    
     <string name="button_erase_log">Erase flash</string>
-    <string name="pref_interval">Log interval (Hz)</string>
-    <string name="text_usage">Flash usage</string>
+    
+    <string name="text_usage">Flash usage</string><string name="pref_interval">Log interval (Hz)</string><string name="pref_bt_devices">Bluetooth device</string>
+    <string name="pref_flash_size">Flash size (MB)</string>
 
 </resources>

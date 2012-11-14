@@ -30,10 +30,11 @@ public final class R {
     public static final class string {
         public static final int app_name=0x7f060000;
         public static final int button_download=0x7f060001;
-        public static final int button_erase_log=0x7f060003;
-        public static final int pref_bt_devices=0x7f060002;
+        public static final int button_erase_log=0x7f060002;
+        public static final int pref_bt_devices=0x7f060005;
+        public static final int pref_flash_size=0x7f060006;
         public static final int pref_interval=0x7f060004;
-        public static final int text_usage=0x7f060005;
+        public static final int text_usage=0x7f060003;
     }
     public static final class xml {
         public static final int preference=0x7f040000;
