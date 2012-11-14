@@ -5,4 +5,5 @@
 	<ListPreference android:key="key_interval" android:title="@string/pref_interval" android:dialogTitle="@string/pref_interval" android:entries="@array/list_interval" android:entryValues="@array/list_interval" android:enabled="false"></ListPreference>
 	<ListPreference android:key="key_bt_devices" android:dialogTitle="@string/pref_bt_devices" android:title="@string/pref_bt_devices"/>
 	<EditTextPreference android:dialogTitle="@string/pref_flash_size" android:title="@string/pref_flash_size" android:key="key_flash_size" android:inputType="number"/>
+	<CheckBoxPreference android:key="key_safemode" android:title="@string/pref_safemode"/>
 </PreferenceScreen>

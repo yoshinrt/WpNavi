@@ -32,7 +32,7 @@ public class MtkPreference extends PreferenceActivity
 	private ListPreference		ListInterval;
 	private ListPreference		ListBTDevices;
 	private EditTextPreference	EditFlashSize;
-	
+
 	private Button	ButtonDownload;
 	private Button	ButtonEraseFlash;
 
@@ -112,21 +112,21 @@ public class MtkPreference extends PreferenceActivity
 
 	public void onClick( View v ){
 		Log.d( "MtkUtility", "Button" );
-		
+
 		if( v == ButtonDownload ){
 			File dir;
 			dir = new File( MTKUTIL_ROOT ); dir.mkdir();
-			
+
 			// 進行状況ダイアログ
 			WaitDialog = new ProgressDialog( this );
-			WaitDialog.setMessage( "Reading log data..." );
+			WaitDialog.setMessage( getString( R.string.caption_reading ));
 			WaitDialog.setProgressStyle( ProgressDialog.STYLE_HORIZONTAL );
 			WaitDialog.setIndeterminate( false );
-			
+
 			WaitDialog.setMax( Mtk.iLogSize >> 10 );// 最大値の設定
 			WaitDialog.incrementProgressBy( 0 );	// セカンダリ値の設定
 			WaitDialog.setCancelable( false );		// キャンセル設定
-			
+
 			// ProgressDialog の Cancel ボタン
 			/*
 			WaitDialog.setButton(
@@ -141,23 +141,23 @@ public class MtkPreference extends PreferenceActivity
 			);
 			*/
 			WaitDialog.show();
-	
+
 			iState = STATE_LOG;
 			Mtk.SaveNMEA( MTKUTIL_ROOT );
 		}else if( v == ButtonEraseFlash ){
 
 			new AlertDialog.Builder( this )
-				.setMessage( "Are you sure you want to erase flash?" )
+				.setMessage( R.string.caption_question_of_erase_flash )
 				.setCancelable( false )
-				.setPositiveButton( "Yes", new DialogInterface.OnClickListener(){
+				.setPositiveButton( R.string.yes, new DialogInterface.OnClickListener(){
 					public void onClick( DialogInterface dialog, int id ){
 						dialog.cancel();
-						
+
 						// 進行状況ダイアログ
 						WaitDialog = new ProgressDialog( MtkPreference.this );
-						WaitDialog.setMessage( "Erasing flash..." );
+						WaitDialog.setMessage( getString( R.string.caption_erasing ));
 						WaitDialog.setProgressStyle( ProgressDialog.STYLE_SPINNER );
-						
+
 						// ProgressDialog の Cancel ボタン
 						/*
 						WaitDialog.setButton(
@@ -171,13 +171,13 @@ public class MtkPreference extends PreferenceActivity
 							}
 						);
 						*/
-						
+
 						WaitDialog.show();
 						iState = STATE_FORMAT;
 						Mtk.Format();
 					}
 				})
-				.setNegativeButton( "No", new DialogInterface.OnClickListener(){
+				.setNegativeButton( R.string.no, new DialogInterface.OnClickListener(){
 					public void onClick( DialogInterface dialog, int id ){
 						dialog.cancel();
 					}
@@ -210,7 +210,9 @@ public class MtkPreference extends PreferenceActivity
 		}
 
 		if( key == null || key.equals( "key_bt_devices" )){
-			ListBTDevices.setSummary( Pref.getString( "key_bt_devices", "Not selected" ));
+			ListBTDevices.setSummary(
+				Pref.getString( "key_bt_devices", getString( R.string.caption_not_selected  ))
+			);
 		}
 
 		if( key == null || key.equals( "key_flash_size" )){
@@ -224,10 +226,18 @@ public class MtkPreference extends PreferenceActivity
 		if( key.equals( "key_interval" )){
 			int ms = ( int )( 1000.0 / Double.parseDouble( Pref.getString( key, "1" )));
 			Mtk.SetInterval( ms );
-			
-			int Hz = 2000 / ms;
-			if( Hz == 0 ) Hz = 1;
-			Mtk.SetNMEAInterval( Hz );
+
+			if( Pref.getBoolean( "key_safemode", false )){
+				// safe モード: 2秒/回 で出力
+				int Hz = 2000 / ms;
+				if( Hz == 0 ) Hz = 1;
+				Mtk.SetNMEAInterval( Hz, 0, 0 );
+			}else{
+				// 通常モード: GSV だけ 1Hz で出力
+				int Hz = 1000 / ms;
+				if( Hz == 0 ) Hz = 1;
+				Mtk.SetNMEAInterval( 1, 1, Hz );
+			}
 		}
 	}
 
@@ -253,6 +263,9 @@ public class MtkPreference extends PreferenceActivity
 				switch( Msg.what ){
 				  case MtkDriver.OPEN_OK:
 					if( iState == STATE_INIT ){
+						if( Pref.getBoolean( "key_safemode", false ))
+							Mtk.SetNMEAInterval( 20, 0, 0 );	// NMEA 頻度
+
 						Mtk.GetRecordSize();	// record size 取得
 						Mtk.GetInterval();		// inteval 取得
 						Mtk.GetFailedSector();	// FailedSector

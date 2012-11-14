@@ -286,8 +286,8 @@ public class MtkDriver implements Runnable{
 	}
 
 	// NMEA 頻度設定
-	void SetNMEAInterval( int iPeriod ){
-		SendCmd( "PMTK314,0,%d,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0", iPeriod );
+	void SetNMEAInterval( int iRMC, int iGGA, int iGSV ){
+		SendCmd( "PMTK314,0,%d,0,%d,0,%d,0,0,0,0,0,0,0,0,0,0,0,0,0", iRMC, iGGA, iGSV );
 	}
 
 	void Format(){
