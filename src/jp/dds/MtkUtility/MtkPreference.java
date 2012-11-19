@@ -30,6 +30,7 @@ public class MtkPreference extends PreferenceActivity
 	implements OnSharedPreferenceChangeListener, OnClickListener {
 
 	private ListPreference		ListInterval;
+	private ListPreference		ListLogFormat;
 	private ListPreference		ListBTDevices;
 	private EditTextPreference	EditFlashSize;
 
@@ -37,7 +38,7 @@ public class MtkPreference extends PreferenceActivity
 	private Button	ButtonEraseFlash;
 
 	MtkDriver	Mtk	= null;
-	static final String MTKUTIL_ROOT = "/sdcard/mtk_util";
+	static final String MTKUTIL_ROOT = "/sdcard/MtkUtility";
 	static final int	REQUEST_ENABLE_BT	= 1;
 	SharedPreferences Pref;
 
@@ -60,6 +61,7 @@ public class MtkPreference extends PreferenceActivity
 		addPreferencesFromResource( R.xml.preference );
 
 		ListInterval	= ( ListPreference		) getPreferenceScreen().findPreference( "key_interval" );
+		ListLogFormat	= ( ListPreference		) getPreferenceScreen().findPreference( "key_logformat" );
 		ListBTDevices	= ( ListPreference		) getPreferenceScreen().findPreference( "key_bt_devices" );
 		EditFlashSize	= ( EditTextPreference	) getPreferenceScreen().findPreference( "key_flash_size" );
 		//ListInterval.setEnabled( true );
@@ -143,7 +145,9 @@ public class MtkPreference extends PreferenceActivity
 			WaitDialog.show();
 
 			iState = STATE_LOG;
-			Mtk.SaveNMEA( MTKUTIL_ROOT );
+			Mtk.SaveLog( MTKUTIL_ROOT,
+				Integer.parseInt( Pref.getString( "key_logformat", "0" ))
+			);
 		}else if( v == ButtonEraseFlash ){
 
 			new AlertDialog.Builder( this )
@@ -209,9 +213,15 @@ public class MtkPreference extends PreferenceActivity
 			ListInterval.setSummary( Pref.getString( "key_interval", "1" ));
 		}
 
+		if( key == null || key.equals( "key_logformat" )){
+			ListLogFormat.setSummary(
+				Pref.getString( "key_logformat", "0" ).equals( "0" ) ? "NMEA" : "GPX"
+			);
+		}
+
 		if( key == null || key.equals( "key_bt_devices" )){
 			ListBTDevices.setSummary(
-				Pref.getString( "key_bt_devices", getString( R.string.caption_not_selected  ))
+				Pref.getString( "key_bt_devices", getString( R.string.caption_not_selected ))
 			);
 		}
 

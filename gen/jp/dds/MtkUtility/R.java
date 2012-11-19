@@ -10,6 +10,8 @@ package jp.dds.MtkUtility;
 public final class R {
     public static final class array {
         public static final int list_interval=0x7f050000;
+        public static final int list_logformat=0x7f050001;
+        public static final int list_logformat_value=0x7f050002;
     }
     public static final class attr {
     }
@@ -31,17 +33,18 @@ public final class R {
         public static final int app_name=0x7f060000;
         public static final int button_download=0x7f060001;
         public static final int button_erase_log=0x7f060002;
-        public static final int caption_erasing=0x7f06000c;
-        public static final int caption_not_selected=0x7f06000d;
-        public static final int caption_question_of_erase_flash=0x7f06000b;
-        public static final int caption_reading=0x7f06000a;
-        public static final int no=0x7f060009;
-        public static final int pref_bt_devices=0x7f060005;
-        public static final int pref_flash_size=0x7f060006;
+        public static final int caption_erasing=0x7f06000d;
+        public static final int caption_not_selected=0x7f06000e;
+        public static final int caption_question_of_erase_flash=0x7f06000c;
+        public static final int caption_reading=0x7f06000b;
+        public static final int no=0x7f06000a;
+        public static final int pref_bt_devices=0x7f060006;
+        public static final int pref_flash_size=0x7f060007;
         public static final int pref_interval=0x7f060004;
-        public static final int pref_safemode=0x7f060007;
+        public static final int pref_logformat=0x7f060005;
+        public static final int pref_safemode=0x7f060008;
         public static final int text_usage=0x7f060003;
-        public static final int yes=0x7f060008;
+        public static final int yes=0x7f060009;
     }
     public static final class xml {
         public static final int preference=0x7f040000;

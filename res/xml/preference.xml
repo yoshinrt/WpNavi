@@ -3,7 +3,8 @@
   xmlns:android="http://schemas.android.com/apk/res/android">
 
 	<ListPreference android:key="key_interval" android:title="@string/pref_interval" android:dialogTitle="@string/pref_interval" android:entries="@array/list_interval" android:entryValues="@array/list_interval" android:enabled="false"></ListPreference>
-	<ListPreference android:key="key_bt_devices" android:dialogTitle="@string/pref_bt_devices" android:title="@string/pref_bt_devices"/>
+	<ListPreference android:key="key_logformat" android:title="@string/pref_logformat" android:dialogTitle="@string/pref_logformat" android:entries="@array/list_logformat" android:entryValues="@array/list_logformat_value"/><ListPreference android:key="key_bt_devices" android:dialogTitle="@string/pref_bt_devices" android:title="@string/pref_bt_devices"/>
 	<EditTextPreference android:dialogTitle="@string/pref_flash_size" android:title="@string/pref_flash_size" android:key="key_flash_size" android:inputType="number"/>
 	<CheckBoxPreference android:key="key_safemode" android:title="@string/pref_safemode"/>
+	
 </PreferenceScreen>

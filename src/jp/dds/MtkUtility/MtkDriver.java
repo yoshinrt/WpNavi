@@ -24,6 +24,8 @@ public class MtkDriver implements Runnable{
 	volatile int	iLogSize		= -1;
 
 	byte [] FailSector	= null;
+
+	int iBufPtr;
 	byte [] LogBuf		= null;
 	volatile int		iInterval;
 	volatile int		iLogReadSize;
@@ -493,7 +495,7 @@ public class MtkDriver implements Runnable{
 			}
 		}
 	}
-	/*** NMEA セーブ ****************************************************/
+	/*** GPS log セーブ *************************************************/
 
 	static final int FMT_UTC		= ( 1 << 0 );
 	static final int FMT_VALID		= ( 1 << 1 );
@@ -535,7 +537,10 @@ public class MtkDriver implements Runnable{
 	static final int SIZE_RCR		= 2;
 	static final int SIZE_MS		= 2;
 
-	void SaveNMEA( final String Dir ){
+	static final int LOG_FORMAT_NMEA	= 0;
+	static final int LOG_FORMAT_GPX		= 1;
+
+	void SaveLog( final String Dir, final int iLogFormat ){
 		GetLog();	// Log ロードコマンド
 
 		// Log セーブスレッド起動
@@ -543,14 +548,14 @@ public class MtkDriver implements Runnable{
 			new Runnable() {
 				@Override
 				public void run(){
-					SaveNMEASub( Dir );
+					SaveLogSub( Dir, iLogFormat );
 				}
 			}
 		).start();
 	}
 
-	int SaveNMEASub( String Dir ){
-		if( bDebug ) DebugMsg( "SaveNMEALog:" + Dir + "\n" );
+	int SaveLogSub( String Dir, int iLogFormat ){
+		if( bDebug ) DebugMsg( "SaveLog:" + Dir + "\n" );
 
 		if( OutStream == null ) return -1;
 
@@ -560,20 +565,18 @@ public class MtkDriver implements Runnable{
 		int i;
 
 		Calendar	Date	= Calendar.getInstance();
-		double		d	= 0;
-
-		String	StrDate, StrTime, StrLong, StrLati, StrHeight, StrSpeed, StrBearing;
 
 		// 日付
 		String s = String.format(
-			"%s/%04d%02d%02d_%02d%02d%02d.nmea",
+			"%s/%04d%02d%02d_%02d%02d%02d.%s",
 			Dir,
 			Date.get( Calendar.YEAR ),
 			Date.get( Calendar.MONTH ) + 1,
 			Date.get( Calendar.DAY_OF_MONTH ),
 			Date.get( Calendar.HOUR_OF_DAY ),
 			Date.get( Calendar.MINUTE ),
-			Date.get( Calendar.SECOND )
+			Date.get( Calendar.SECOND ),
+			iLogFormat == LOG_FORMAT_NMEA ? "nmea" : "gpx"
 		);
 
 		// ログファイルオープン
@@ -583,45 +586,47 @@ public class MtkDriver implements Runnable{
 			return -1;
 		}
 
+		if( iLogFormat == LOG_FORMAT_GPX ) WriteGPXHeader( fsLog );
+
 		try{
-			int iPtr = 0;
+			iBufPtr = 0;
 			int iPtrPrev = -1;
 
-			while( iPtr < iLogSize ){
+			while( iBufPtr < iLogSize ){
 				/*** セクタ先頭の解析 ***/
 
 				// Failed Sector で無いことを確認
 				if(
 					(
-						FailSector[ iPtr / SECTOR_SIZE / 8 ] &
-						( 1 << (( iPtr / SECTOR_SIZE ) & 0x7 ))
+						FailSector[ iBufPtr / SECTOR_SIZE / 8 ] &
+						( 1 << (( iBufPtr / SECTOR_SIZE ) & 0x7 ))
 					) == 0
 				){
-					if( bDebug ) DebugMsg( "SaveNMEA:inalid Sector: %d\n", iPtr / SECTOR_SIZE );
-					iPtr += SECTOR_SIZE;
+					if( bDebug ) DebugMsg( "SaveLog:inalid Sector: %d\n", iBufPtr / SECTOR_SIZE );
+					iBufPtr += SECTOR_SIZE;
 					continue;
 				}
 
 				// 少なくともセクタヘッダの分残りサイズがあるか確認
-				if( iLogSize - iPtr < HEADER_SIZE ) break;
+				if( iLogSize - iBufPtr < HEADER_SIZE ) break;
 
 				// 少なくともセクタヘッダの分読んだか確認
-				while( iLogReadSize - iPtr < HEADER_SIZE ) try{
+				while( iLogReadSize - iBufPtr < HEADER_SIZE ) try{
 					Thread.sleep( 100 );
 				}catch( Exception e ){};
 
-				iFormatReg = GetI4( LogBuf, iPtr + 0x2 );
+				iFormatReg = GetI4( LogBuf, iBufPtr + 0x2 );
 				iRecordSize = GetRecordSize( iFormatReg );
-				if( bDebug ) DebugMsg( "SaveNMEA:Valid Sector %d: Fmt = %X, Size = %d\n", iPtr / SECTOR_SIZE, iFormatReg, iRecordSize );
-				iPtr += HEADER_SIZE;
+				if( bDebug ) DebugMsg( "SaveLog:Valid Sector %d: Fmt = %X, Size = %d\n", iBufPtr / SECTOR_SIZE, iFormatReg, iRecordSize );
+				iBufPtr += HEADER_SIZE;
 
 				/*** ログデータの解析 ***/
-				int iSectorEnd = iPtr + SECTOR_SIZE - HEADER_SIZE;
+				int iSectorEnd = iBufPtr + SECTOR_SIZE - HEADER_SIZE;
 				if( iSectorEnd > iLogSize ) iSectorEnd = iLogSize;
 
-				while( iPtr < iSectorEnd ){
-					if(( iPtrPrev & ~0x3FF ) != ( iPtr & ~0x3FF )){
-						iPtrPrev = iPtr;
+				while( iBufPtr < iSectorEnd ){
+					if(( iPtrPrev & ~0x3FF ) != ( iBufPtr & ~0x3FF )){
+						iPtrPrev = iBufPtr;
 						Message Msg = new Message();
 						Msg.what	= GET_LOG_PROCEEDING;
 						Msg.arg1	= iPtrPrev;
@@ -629,133 +634,51 @@ public class MtkDriver implements Runnable{
 					}
 
 					// dynamic setting pattern の検出
-					if( iSectorEnd - iPtr >= DYNAMIC_PATTERN_SIZE ){
+					if( iSectorEnd - iBufPtr >= DYNAMIC_PATTERN_SIZE ){
 
-						while( iLogReadSize - iPtr < DYNAMIC_PATTERN_SIZE ) try{
+						while( iLogReadSize - iBufPtr < DYNAMIC_PATTERN_SIZE ) try{
 							Thread.sleep( 100 );
 						}catch( Exception e ){};
 
 						// 0xAA x 7 か?
 						for( i = 0; i < 7; ++i ){
-							if( LogBuf[ iPtr + i ] != ( byte )0xAA ) break;
+							if( LogBuf[ iBufPtr + i ] != ( byte )0xAA ) break;
 						}
 
 						if( i >= 7 ){
-							if( bDebug ) DebugMsg( "SaveNMEA: Dynamic pattern found: %X ID = %X\n", iPtr, LogBuf[ iPtr + 7 ] );
+							if( bDebug ) DebugMsg( "SaveLog: Dynamic pattern found: %X ID = %X\n", iBufPtr, LogBuf[ iBufPtr + 7 ] );
 
-							if( LogBuf[ iPtr + 7 ] == 2 ){
-								iFormatReg = GetI4( LogBuf, iPtr + 8 );
+							if( LogBuf[ iBufPtr + 7 ] == 2 ){
+								iFormatReg = GetI4( LogBuf, iBufPtr + 8 );
 								iRecordSize = GetRecordSize( iFormatReg );
-								if( bDebug ) DebugMsg( "SaveNMEA: FormatReg changed: %X\n", iFormatReg );
+								if( bDebug ) DebugMsg( "SaveLog: FormatReg changed: %X\n", iFormatReg );
 							}
-							iPtr += DYNAMIC_PATTERN_SIZE;
+							iBufPtr += DYNAMIC_PATTERN_SIZE;
 							continue;
 						}
 					}
 
 					// 通常レコード分のサイズがあるか検出
-					if( iSectorEnd - iPtr < iRecordSize ){
-						iPtr = ( iPtr + SECTOR_SIZE - 1 ) & ~( SECTOR_SIZE - 1 );
-						if( bDebug ) DebugMsg( "SaveNMEA: Sector end detected, next = %X\n", iPtr );
+					if( iSectorEnd - iBufPtr < iRecordSize ){
+						iBufPtr = ( iBufPtr + SECTOR_SIZE - 1 ) & ~( SECTOR_SIZE - 1 );
+						if( bDebug ) DebugMsg( "SaveLog: Sector end detected, next = %X\n", iBufPtr );
 						break;
 					}
 
 					// 通常レコード分のサイズを読んだか検出
-					while( iLogReadSize - iPtr < iRecordSize ) try{
+					while( iLogReadSize - iBufPtr < iRecordSize ) try{
 						Thread.sleep( 100 );
 					}catch( Exception e ){};
 
-					// 通常レコードの検出
-					StrDate = StrTime = StrSpeed = StrBearing = ",";
-					StrLong = StrLati = StrHeight = ",,";
-
-					if(( iFormatReg & FMT_UTC ) != 0 ){
-						Date.clear();
-						Date.set( 1970, 0, 1 );
-						Date.add( Calendar.SECOND, GetI4( LogBuf, iPtr ));
-
-						iPtr += SIZE_UTC;
-					}
-					if(( iFormatReg & FMT_VALID ) != 0 ){
-						iPtr += SIZE_VALID;
-					}
-					if(( iFormatReg & FMT_LATITUDE ) != 0 ){
-						d = GetR8( LogBuf, iPtr );
-						if( d >= 0 ){
-							StrLati = FormatDeg( d ) + ",N,";
-						}else{
-							StrLati = FormatDeg( -d ) + ",S,";
-						}
-						iPtr += SIZE_LATITUDE;
-					}
-					if(( iFormatReg & FMT_LONGITUDE ) != 0 ){
-						d = GetR8( LogBuf, iPtr );
-						if( d >= 0 ){
-							StrLong = FormatDeg( d ) + ",E,";
-						}else{
-							StrLong = FormatDeg( -d ) + ",W,";
-						}
-						iPtr += SIZE_LONGITUDE;
-					}
-					if(( iFormatReg & FMT_HEIGHT ) != 0 ){
-						StrHeight = String.format( "%.03f,M,", GetR4( LogBuf, iPtr ));
-						iPtr += SIZE_HEIGHT;
-					}
-					if(( iFormatReg & FMT_SPEED ) != 0 ){
-						StrSpeed = String.format( "%.03f,", GetR4( LogBuf, iPtr ) / 1.85200 );
-						iPtr += SIZE_SPEED;
-					}
-					if(( iFormatReg & FMT_TRACK ) != 0 ){
-						StrBearing = String.format( "%.02f,", GetR4( LogBuf, iPtr ));
-						iPtr += SIZE_TRACK;
-					}
-					if(( iFormatReg & FMT_DSTA ) != 0 ){	iPtr += SIZE_DSTA;	}
-					if(( iFormatReg & FMT_DAGE ) != 0 ){	iPtr += SIZE_DAGE;	}
-					if(( iFormatReg & FMT_PDOP ) != 0 ){	iPtr += SIZE_PDOP;	}
-					if(( iFormatReg & FMT_HDOP ) != 0 ){	iPtr += SIZE_HDOP;	}
-					if(( iFormatReg & FMT_VDOP ) != 0 ){	iPtr += SIZE_VDOP;	}
-					if(( iFormatReg & FMT_NSAT ) != 0 ){	iPtr += SIZE_NSAT;	}
-					if(( iFormatReg & FMT_SID ) != 0 ){		iPtr += SIZE_SID;	}
-					if(( iFormatReg & FMT_ELE ) != 0 ){		iPtr += SIZE_ELE;	}
-					if(( iFormatReg & FMT_AZI ) != 0 ){		iPtr += SIZE_AZI;	}
-					if(( iFormatReg & FMT_SNR ) != 0 ){		iPtr += SIZE_SNR;	}
-					if(( iFormatReg & FMT_RCR ) != 0 ){		iPtr += SIZE_RCR;	}
-					if(( iFormatReg & FMT_MS ) != 0 ){
-						Date.add( Calendar.MILLISECOND, GetU2( LogBuf, iPtr ));
-						iPtr += SIZE_MS;
-					}
-					iPtr += 2; // chksum
-
-					// NMEA フォーマット生成
-					if(( iFormatReg & FMT_UTC ) != 0 ){
-						// 日付生成しなおし
-						StrDate = String.format( "%02d%02d%02d,",
-							Date.get( Calendar.DAY_OF_MONTH ),
-							Date.get( Calendar.MONTH ) + 1,
-							Date.get( Calendar.YEAR ) % 100
-						);
-
-						StrTime = String.format( "%02d%02d%02d.%03d,",
-							Date.get( Calendar.HOUR_OF_DAY ),
-							Date.get( Calendar.MINUTE ),
-							Date.get( Calendar.SECOND ),
-							Date.get( Calendar.MILLISECOND )
-						);
-					}
-
-					WriteNMEA( fsLog,
-						"$GPGGA,%s%s%s1,,,%s,,,",
-						StrTime, StrLati, StrLong, StrHeight
-					);
-					WriteNMEA( fsLog,
-						"$GPRMC,%sA,%s%s%s%s%s,,A",
-						StrTime, StrLati, StrLong, StrSpeed, StrBearing, StrDate
-					);
+					if( iLogFormat == LOG_FORMAT_NMEA ) WriteNMEARecord( fsLog, iFormatReg );
+					else WriteGPXRecord( fsLog, iFormatReg );
 				}
 			}
 		}catch( Exception e ){
 			if( bDebug ) DebugMsg( "" + e );
 		};
+
+		if( iLogFormat == LOG_FORMAT_GPX ) WriteGPXFooter( fsLog );
 
 		try{
 			fsLog.close();
@@ -767,27 +690,27 @@ public class MtkDriver implements Runnable{
 		return 0;
 	}
 
-	int GetI4( byte [] Buf, int iPtr ){
-		return	(  Buf[ iPtr ]     & 0xFF )|
-				(( Buf[ iPtr + 1 ] & 0xFF ) <<  8 ) |
-				(( Buf[ iPtr + 2 ] & 0xFF ) << 16 ) |
-				(( Buf[ iPtr + 3 ]        ) << 24 );
+	int GetI4( byte [] Buf, int iBufPtr ){
+		return	(  Buf[ iBufPtr ]     & 0xFF )|
+				(( Buf[ iBufPtr + 1 ] & 0xFF ) <<  8 ) |
+				(( Buf[ iBufPtr + 2 ] & 0xFF ) << 16 ) |
+				(( Buf[ iBufPtr + 3 ]        ) << 24 );
 	}
 
-	int GetU2( byte [] Buf, int iPtr ){
-		return	(  Buf[ iPtr ]     & 0xFF )|
-				(( Buf[ iPtr + 1 ] & 0xFF ) <<  8 );
+	int GetU2( byte [] Buf, int iBufPtr ){
+		return	(  Buf[ iBufPtr ]     & 0xFF )|
+				(( Buf[ iBufPtr + 1 ] & 0xFF ) <<  8 );
 	}
 
-	double GetR8( byte [] Buf, int iPtr ){
+	double GetR8( byte [] Buf, int iBufPtr ){
 		return Double.longBitsToDouble(
-			( long )( GetI4( Buf, iPtr )) & 0xFFFFFFFFL |
-			(( long )( GetI4( Buf, iPtr + 4 )) << 32 )
+			( long )( GetI4( Buf, iBufPtr )) & 0xFFFFFFFFL |
+			(( long )( GetI4( Buf, iBufPtr + 4 )) << 32 )
 		);
 	}
 
-	float GetR4( byte [] Buf, int iPtr ){
-		return Float.intBitsToFloat( GetI4( Buf, iPtr ));
+	float GetR4( byte [] Buf, int iBufPtr ){
+		return Float.intBitsToFloat( GetI4( Buf, iBufPtr ));
 	}
 
 	int GetRecordSize( int iReg ){
@@ -816,17 +739,201 @@ public class MtkDriver implements Runnable{
 		return iRet;
 	}
 
-	String FormatDeg( double dDeg ){
-		int iDeg = ( int )dDeg;
-		dDeg *= 60;
+	/*** GPX ヘルパ *****************************************************/
 
-		return String.format( "%d%09.06f",
-			iDeg,
-			dDeg - ( iDeg * 60 )
+	void WriteGPXRecord( BufferedWriter fsLog, int iFormatReg ){
+		try{
+			// 通常レコードの検出
+
+			Calendar	Date	= Calendar.getInstance();
+
+			if(( iFormatReg & FMT_UTC ) != 0 ){
+				Date.clear();
+				Date.set( 1970, 0, 1 );
+				Date.add( Calendar.SECOND, GetI4( LogBuf, iBufPtr ));
+
+				iBufPtr += SIZE_UTC;
+			}
+			if(( iFormatReg & FMT_VALID ) != 0 ){
+				iBufPtr += SIZE_VALID;
+			}
+
+			double dLong = 0;
+			double dLati = 0;
+
+			if(( iFormatReg & FMT_LATITUDE ) != 0 ){
+				dLati = GetR8( LogBuf, iBufPtr );
+				iBufPtr += SIZE_LATITUDE;
+			}
+			if(( iFormatReg & FMT_LONGITUDE ) != 0 ){
+				dLong = GetR8( LogBuf, iBufPtr );
+				iBufPtr += SIZE_LONGITUDE;
+			}
+
+			fsLog.write( String.format( "<trkpt lon=\"%.10f\" lat=\"%.10f\">", dLong, dLati ));
+
+			if(( iFormatReg & FMT_HEIGHT ) != 0 ){
+				fsLog.write( String.format( "<ele>%.3f</ele>", GetR4( LogBuf, iBufPtr )));
+				iBufPtr += SIZE_HEIGHT;
+			}
+			if(( iFormatReg & FMT_SPEED ) != 0 ){
+				fsLog.write( String.format( "<speed>%.3f</speed>", GetR4( LogBuf, iBufPtr ) / 3.6 ));
+				iBufPtr += SIZE_SPEED;
+			}
+			if(( iFormatReg & FMT_TRACK ) != 0 ){
+				fsLog.write( String.format( "<course>%.3f</course>", GetR4( LogBuf, iBufPtr )));
+				iBufPtr += SIZE_TRACK;
+			}
+
+			if(( iFormatReg & FMT_DSTA ) != 0 ){	iBufPtr += SIZE_DSTA;	}
+			if(( iFormatReg & FMT_DAGE ) != 0 ){	iBufPtr += SIZE_DAGE;	}
+			if(( iFormatReg & FMT_PDOP ) != 0 ){	iBufPtr += SIZE_PDOP;	}
+			if(( iFormatReg & FMT_HDOP ) != 0 ){	iBufPtr += SIZE_HDOP;	}
+			if(( iFormatReg & FMT_VDOP ) != 0 ){	iBufPtr += SIZE_VDOP;	}
+			if(( iFormatReg & FMT_NSAT ) != 0 ){	iBufPtr += SIZE_NSAT;	}
+			if(( iFormatReg & FMT_SID ) != 0 ){		iBufPtr += SIZE_SID;	}
+			if(( iFormatReg & FMT_ELE ) != 0 ){		iBufPtr += SIZE_ELE;	}
+			if(( iFormatReg & FMT_AZI ) != 0 ){		iBufPtr += SIZE_AZI;	}
+			if(( iFormatReg & FMT_SNR ) != 0 ){		iBufPtr += SIZE_SNR;	}
+			if(( iFormatReg & FMT_RCR ) != 0 ){		iBufPtr += SIZE_RCR;	}
+
+			if(( iFormatReg & FMT_MS ) != 0 ){
+				Date.add( Calendar.MILLISECOND, GetU2( LogBuf, iBufPtr ));
+				iBufPtr += SIZE_MS;
+			}
+			iBufPtr += 2; // chksum
+
+			// NMEA フォーマット生成
+			if(( iFormatReg & FMT_UTC ) != 0 ){
+				// 日付生成しなおし
+				fsLog.write(
+					String.format(
+						"<time>%04d-%02d-%02dT%02d:%02d:%02d.%03dZ</time>",
+						Date.get( Calendar.YEAR ),
+						Date.get( Calendar.MONTH ) + 1,
+						Date.get( Calendar.DAY_OF_MONTH ),
+						Date.get( Calendar.HOUR_OF_DAY ),
+						Date.get( Calendar.MINUTE ),
+						Date.get( Calendar.SECOND ),
+						Date.get( Calendar.MILLISECOND )
+					)
+				);
+			}
+
+			fsLog.write( "</trkpt>\n" );
+		}catch( Exception e ){}
+	}
+
+	void WriteGPXHeader( BufferedWriter fsLog ){
+		try{
+			fsLog.write(
+				"<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n" +
+				"<gpx version=\"1.0\" creator=\"MtkUtility\" " +
+				"xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" " +
+				"xmlns=\"http://www.topografix.com/GPX/1/0\" " +
+				"xsi:schemaLocation=\"http://www.topografix.com/GPX/1/0 http://www.topografix.com/GPX/1/0/gpx.xsd\">\n" +
+				"<trk><trkseg>\n"
+			);
+		}catch( Exception e ){}
+	}
+
+	void WriteGPXFooter( BufferedWriter fsLog ){
+		try{
+			fsLog.write( "</trkseg></trk></gpx>\n" );
+		}catch( Exception e ){}
+	}
+
+	/*** NMEA ヘルパ ****************************************************/
+
+	void WriteNMEARecord( BufferedWriter fsLog, int iFormatReg ){
+		// 通常レコードの検出
+		String	StrDate, StrTime, StrLong, StrLati, StrHeight, StrSpeed, StrBearing;
+
+		StrDate = StrTime = StrSpeed = StrBearing = ",";
+		StrLong = StrLati = StrHeight = ",,";
+
+		Calendar	Date	= Calendar.getInstance();
+		double		d	= 0;
+
+		if(( iFormatReg & FMT_UTC ) != 0 ){
+			Date.clear();
+			Date.set( 1970, 0, 1 );
+			Date.add( Calendar.SECOND, GetI4( LogBuf, iBufPtr ));
+
+			iBufPtr += SIZE_UTC;
+		}
+		if(( iFormatReg & FMT_VALID ) != 0 ){
+			iBufPtr += SIZE_VALID;
+		}
+		if(( iFormatReg & FMT_LATITUDE ) != 0 ){
+			d = GetR8( LogBuf, iBufPtr );
+			if( d >= 0 )	StrLati = FormatNMEADeg( d ) + ",N,";
+			else			StrLati = FormatNMEADeg( -d ) + ",S,";
+			iBufPtr += SIZE_LATITUDE;
+		}
+		if(( iFormatReg & FMT_LONGITUDE ) != 0 ){
+			d = GetR8( LogBuf, iBufPtr );
+			if( d >= 0 )	StrLong = FormatNMEADeg( d ) + ",E,";
+			else			StrLong = FormatNMEADeg( -d ) + ",W,";
+			iBufPtr += SIZE_LONGITUDE;
+		}
+		if(( iFormatReg & FMT_HEIGHT ) != 0 ){
+			StrHeight = String.format( "%.03f,M,", GetR4( LogBuf, iBufPtr ));
+			iBufPtr += SIZE_HEIGHT;
+		}
+		if(( iFormatReg & FMT_SPEED ) != 0 ){
+			StrSpeed = String.format( "%.03f,", GetR4( LogBuf, iBufPtr ) / 1.85200 );
+			iBufPtr += SIZE_SPEED;
+		}
+		if(( iFormatReg & FMT_TRACK ) != 0 ){
+			StrBearing = String.format( "%.02f,", GetR4( LogBuf, iBufPtr ));
+			iBufPtr += SIZE_TRACK;
+		}
+		if(( iFormatReg & FMT_DSTA ) != 0 ){	iBufPtr += SIZE_DSTA;	}
+		if(( iFormatReg & FMT_DAGE ) != 0 ){	iBufPtr += SIZE_DAGE;	}
+		if(( iFormatReg & FMT_PDOP ) != 0 ){	iBufPtr += SIZE_PDOP;	}
+		if(( iFormatReg & FMT_HDOP ) != 0 ){	iBufPtr += SIZE_HDOP;	}
+		if(( iFormatReg & FMT_VDOP ) != 0 ){	iBufPtr += SIZE_VDOP;	}
+		if(( iFormatReg & FMT_NSAT ) != 0 ){	iBufPtr += SIZE_NSAT;	}
+		if(( iFormatReg & FMT_SID ) != 0 ){		iBufPtr += SIZE_SID;	}
+		if(( iFormatReg & FMT_ELE ) != 0 ){		iBufPtr += SIZE_ELE;	}
+		if(( iFormatReg & FMT_AZI ) != 0 ){		iBufPtr += SIZE_AZI;	}
+		if(( iFormatReg & FMT_SNR ) != 0 ){		iBufPtr += SIZE_SNR;	}
+		if(( iFormatReg & FMT_RCR ) != 0 ){		iBufPtr += SIZE_RCR;	}
+		if(( iFormatReg & FMT_MS ) != 0 ){
+			Date.add( Calendar.MILLISECOND, GetU2( LogBuf, iBufPtr ));
+			iBufPtr += SIZE_MS;
+		}
+		iBufPtr += 2; // chksum
+
+		// NMEA フォーマット生成
+		if(( iFormatReg & FMT_UTC ) != 0 ){
+			// 日付生成しなおし
+			StrDate = String.format( "%02d%02d%02d,",
+				Date.get( Calendar.DAY_OF_MONTH ),
+				Date.get( Calendar.MONTH ) + 1,
+				Date.get( Calendar.YEAR ) % 100
+			);
+
+			StrTime = String.format( "%02d%02d%02d.%03d,",
+				Date.get( Calendar.HOUR_OF_DAY ),
+				Date.get( Calendar.MINUTE ),
+				Date.get( Calendar.SECOND ),
+				Date.get( Calendar.MILLISECOND )
+			);
+		}
+
+		WriteNMEASentence( fsLog,
+			"$GPGGA,%s%s%s1,,,%s,,,",
+			StrTime, StrLati, StrLong, StrHeight
+		);
+		WriteNMEASentence( fsLog,
+			"$GPRMC,%sA,%s%s%s%s%s,,A",
+			StrTime, StrLati, StrLong, StrSpeed, StrBearing, StrDate
 		);
 	}
 
-	int WriteNMEA( BufferedWriter fsLog, String format, Object ... args ){
+	int WriteNMEASentence( BufferedWriter fsLog, String format, Object ... args ){
 		String s = String.format( format, args );
 		int iSum = 0;
 
@@ -841,6 +948,16 @@ public class MtkDriver implements Runnable{
 			return -1;
 		}
 		return 0;
+	}
+
+	String FormatNMEADeg( double dDeg ){
+		int iDeg = ( int )dDeg;
+		dDeg *= 60;
+
+		return String.format( "%d%09.06f",
+			iDeg,
+			dDeg - ( iDeg * 60 )
+		);
 	}
 
 	/********************************************************************/
