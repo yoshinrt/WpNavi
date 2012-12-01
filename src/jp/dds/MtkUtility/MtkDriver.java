@@ -127,7 +127,9 @@ public class MtkDriver implements Runnable{
 		int		iSize	= 0;
 		int		iReadSize;
 		int		i;
-
+		
+		bKillThread = false;
+		
 		//BufferedOutputStream  fsDebugLog = null;
 		//try{
 		//	fsDebugLog    = new BufferedOutputStream( new FileOutputStream( "/sdcard/z" ));
@@ -159,7 +161,7 @@ public class MtkDriver implements Runnable{
 		// given BluetoothDevice
 		if( bDebug ) Log.d( "MtkUtility", "MtkDriver::createRfcommSocket" );
 		try{
-			BTSock = device.createRfcommSocketToServiceRecord( BT_UUID );
+			BTSock = device.createInsecureRfcommSocketToServiceRecord( BT_UUID );
 		}catch( IOException e ){
 			if( BTSock != null ) try{
 				BTSock.close();
@@ -234,7 +236,7 @@ public class MtkDriver implements Runnable{
 				}
 			}
 		}catch( Exception e ){
-			if( bDebug ) Log.d( "MtkUtility", "MtkDriver::run() exit" + e );
+			if( bDebug ) Log.d( "MtkUtility", "MtkDriver::run() exit with exception" + e );
 		}
 
 		if( bDebug ) Log.d( "MtkUtility", "MtkDriver::run() exit" );
