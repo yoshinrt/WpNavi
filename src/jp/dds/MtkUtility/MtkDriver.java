@@ -68,7 +68,7 @@ public class MtkDriver implements Runnable{
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 	}
 
-	/*** onen ***********************************************************/
+	/*** open ***********************************************************/
 
 	public int Open( String argBTName ){
 
@@ -127,9 +127,9 @@ public class MtkDriver implements Runnable{
 		int		iSize	= 0;
 		int		iReadSize;
 		int		i;
-		
+
 		bKillThread = false;
-		
+
 		//BufferedOutputStream  fsDebugLog = null;
 		//try{
 		//	fsDebugLog    = new BufferedOutputStream( new FileOutputStream( "/sdcard/z" ));

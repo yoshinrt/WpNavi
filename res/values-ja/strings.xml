@@ -9,6 +9,7 @@
     <string name="pref_bt_devices">Bluetooth 機器</string>
     <string name="pref_flash_size">Flash メモリサイズ (MB)</string>
     <string name="pref_safemode">Bluetooth 通信負荷低減</string>
+    <string name="pref_savedir">ログ保存ディレクトリ</string>
     <string name="yes">はい</string>
     <string name="no">いいえ</string>
     <string name="caption_reading">ログ読込中...</string>
