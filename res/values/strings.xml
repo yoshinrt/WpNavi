@@ -15,5 +15,5 @@
     <string name="caption_reading">Reading log data...</string>
     <string name="caption_question_of_erase_flash">Are you sure you want to erase flash?</string>
     <string name="caption_erasing">Erasing flash...</string>
-    <string name="caption_not_selected">Not selected</string>
+    <string name="caption_not_selected">Not selected / 00:00:00:00:00:00</string>
 </resources>

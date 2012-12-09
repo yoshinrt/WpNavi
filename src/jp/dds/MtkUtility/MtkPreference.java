@@ -80,7 +80,7 @@ public class MtkPreference extends PreferenceActivity
 		Mtk = new MtkDriver( CreateHandler());
 
 		iState = STATE_INIT;
-		Mtk.Open( Pref.getString( "key_bt_devices", "" ));
+		Mtk.Open( Pref.getString( "key_bt_devices", null ));
 
 		//////////////////////////////////////////////////////////////////////
 		// BT デバイスリストの作成
@@ -118,8 +118,8 @@ public class MtkPreference extends PreferenceActivity
 
 		if( v == ButtonDownload ){
 			File dir;
-			dir = new File( Pref.getString( "key_savedir", "" ));
-			dir.mkdir();
+			dir = new File( Pref.getString( "key_savedir", null ));
+			dir.mkdirs();
 
 			// 進行状況ダイアログ
 			WaitDialog = new ProgressDialog( this );
@@ -148,8 +148,8 @@ public class MtkPreference extends PreferenceActivity
 
 			iState = STATE_LOG;
 			Mtk.SaveLog(
-				Pref.getString( "key_savedir", "" ),
-				Integer.parseInt( Pref.getString( "key_logformat", "" ))
+				Pref.getString( "key_savedir", null ),
+				Integer.parseInt( Pref.getString( "key_logformat", null ))
 			);
 		}else if( v == ButtonEraseFlash ){
 
@@ -224,16 +224,16 @@ public class MtkPreference extends PreferenceActivity
 
 		if( key == null || key.equals( "key_bt_devices" )){
 			ListBTDevices.setSummary(
-				Pref.getString( "key_bt_devices", getString( R.string.caption_not_selected ))
+				Pref.getString( "key_bt_devices", null )
 			);
 		}
 
 		if( key == null || key.equals( "key_flash_size" )){
-			EditFlashSize.setSummary( Pref.getString( "key_flash_size", "" ));
+			EditFlashSize.setSummary( Pref.getString( "key_flash_size", null ));
 		}
 
 		if( key == null || key.equals( "key_savedir" )){
-			EditSaveDir.setSummary( Pref.getString( "key_savedir", "" ));
+			EditSaveDir.setSummary( Pref.getString( "key_savedir", null ));
 		}
 	}
 
@@ -241,7 +241,7 @@ public class MtkPreference extends PreferenceActivity
 		SetupSummery( Pref, key );
 
 		if( key.equals( "key_interval" )){
-			int ms = ( int )( 1000.0 / Double.parseDouble( Pref.getString( key, "" )));
+			int ms = ( int )( 1000.0 / Double.parseDouble( Pref.getString( key, null )));
 			Mtk.SetInterval( ms );
 
 			if( Pref.getBoolean( "key_safemode", false )){
@@ -304,7 +304,7 @@ public class MtkPreference extends PreferenceActivity
 					// プログレスバー設定
 					ProgressBar progressBar = ( ProgressBar )findViewById( id.progressBar_flash_usage );
 					progressBar.setMax(
-						Integer.parseInt( Pref.getString( "key_flash_size", "" )) * 1024 * 1024
+						Integer.parseInt( Pref.getString( "key_flash_size", null )) * 1024 * 1024
 					);	// 4MB
 					progressBar.setProgress( Msg.arg1 );
 					break;
@@ -358,7 +358,7 @@ public class MtkPreference extends PreferenceActivity
 		){
 			// 再 open でも失敗する（；´д⊂）
 			iState = STATE_INIT;
-			Mtk.Open( Pref.getString( "key_bt_devices", "" ));
+			Mtk.Open( Pref.getString( "key_bt_devices", null ));
 		}
 	}
 }

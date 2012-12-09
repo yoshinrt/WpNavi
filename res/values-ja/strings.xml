@@ -15,5 +15,5 @@
     <string name="caption_reading">ログ読込中...</string>
     <string name="caption_question_of_erase_flash">ログを消去しますか?</string>
     <string name="caption_erasing">ログを消去中...</string>
-    <string name="caption_not_selected">未選択</string>
+    <string name="caption_not_selected">未選択 / 00:00:00:00:00:00</string>
 </resources>
