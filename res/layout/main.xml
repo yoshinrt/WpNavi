@@ -1,47 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	android:id="@+id/LinearLayout1"
-	android:layout_width="fill_parent"
-	android:layout_height="fill_parent"
-	android:orientation="vertical" >
+    android:id="@+id/LinearLayout1"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
 
-	<ListView
-	    android:id="@android:id/list"
-	    android:layout_width="fill_parent"
-	    android:layout_height="fill_parent" android:isScrollContainer="false" android:layout_weight="1">
-	</ListView>
-
-	<TextView
-	    android:id="@+id/textView_flash_usage"
-	    android:layout_width="wrap_content"
-	    android:layout_height="wrap_content"
-	    android:text="@string/text_usage"
-	    android:textAppearance="?android:attr/textAppearanceMedium" />
-
-	<ProgressBar
-	    android:id="@+id/progressBar_flash_usage"
-	    style="?android:attr/progressBarStyleHorizontal"
-	    android:layout_width="fill_parent"
-	    android:layout_height="wrap_content" />
-
-	<LinearLayout
-	    android:id="@+id/linearLayout2"
+	<fragment
+	    android:id="@+id/map"
 	    android:layout_width="match_parent"
-	    android:layout_height="wrap_content">
+	    android:layout_height="0dp"
+	    android:layout_weight="1"
+		class="com.google.android.gms.maps.SupportMapFragment"/>
 
-		<Button
-		    android:id="@+id/button_download"
-		    android:layout_width="1000dp"
-		    android:layout_height="wrap_content"
-		    android:text="@string/button_download" android:layout_weight="1"/>
+    <LinearLayout
+        android:id="@+id/linearLayout2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
 
-		<Button
-		    android:id="@+id/button_erase_flash"
-		    android:layout_width="1000dp"
-		    android:layout_height="wrap_content"
-		    android:text="@string/button_erase_log" android:layout_weight="1"/>
+        <Button
+            android:id="@+id/button_prevwp"
+            android:layout_width="1000dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/button_prevwp" />
 
-	</LinearLayout>
+        <Button
+            android:id="@+id/button_start_navi_flash"
+            android:layout_width="1000dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/button_start_navi" />
+
+        <Button
+            android:id="@+id/button1"
+            android:layout_width="1000dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/button_nextwp" />
+    </LinearLayout>
 
 </LinearLayout>
