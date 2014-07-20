@@ -18,21 +18,22 @@
         android:layout_height="wrap_content" >
 
         <Button
-            android:id="@+id/button_prevwp"
+            android:id="@+id/buttonPrevWp"
             android:layout_width="1000dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/button_prevwp" />
 
         <Button
-            android:id="@+id/button_start_navi_flash"
+            android:id="@+id/buttonStartNavi"
             android:layout_width="1000dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="onClickStartNavi"
             android:text="@string/button_start_navi" />
 
         <Button
-            android:id="@+id/button1"
+            android:id="@+id/buttonNextWp"
             android:layout_width="1000dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"

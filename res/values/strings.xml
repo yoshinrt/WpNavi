@@ -7,4 +7,6 @@
     <string name="pref_savedir">Log save directory</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="text_InvalidKMLFormat">Invalid KML format</string>
+    <string name="text_FileNotFound">File not found</string>
 </resources>

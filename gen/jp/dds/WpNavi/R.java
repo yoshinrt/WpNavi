@@ -398,9 +398,9 @@ containing a value of this type.
     public static final class id {
         public static final int LinearLayout1=0x7f070014;
         public static final int book_now=0x7f070010;
-        public static final int button1=0x7f070019;
-        public static final int button_prevwp=0x7f070017;
-        public static final int button_start_navi_flash=0x7f070018;
+        public static final int buttonNextWp=0x7f070019;
+        public static final int buttonPrevWp=0x7f070017;
+        public static final int buttonStartNavi=0x7f070018;
         public static final int buyButton=0x7f07000a;
         public static final int buy_now=0x7f07000f;
         public static final int buy_with_google=0x7f07000e;
@@ -409,6 +409,8 @@ containing a value of this type.
         public static final int holo_dark=0x7f070005;
         public static final int holo_light=0x7f070006;
         public static final int hybrid=0x7f070004;
+        public static final int itemLoadKML=0x7f07001a;
+        public static final int itemSetting=0x7f07001b;
         public static final int linearLayout2=0x7f070016;
         public static final int map=0x7f070015;
         public static final int match_parent=0x7f07000c;
@@ -428,6 +430,9 @@ containing a value of this type.
     }
     public static final class layout {
         public static final int main=0x7f030000;
+    }
+    public static final class menu {
+        public static final int optionsmenu=0x7f090000;
     }
     public static final class string {
         public static final int app_name=0x7f050020;
@@ -531,6 +536,8 @@ containing a value of this type.
         public static final int common_signin_button_text_long=0x7f05001e;
         public static final int no=0x7f050027;
         public static final int pref_savedir=0x7f050025;
+        public static final int text_FileNotFound=0x7f050029;
+        public static final int text_InvalidKMLFormat=0x7f050028;
         public static final int text_usage=0x7f050024;
         /**  Text on a placeholder buy button when Google Play services is not
          available or up-to-date 
