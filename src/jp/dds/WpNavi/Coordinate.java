@@ -1,27 +1,30 @@
 package jp.dds.WpNavi;
 
+import java.util.ArrayList;
+
 import com.google.android.gms.maps.model.LatLng;
 
 public class Coordinate {
-	int iLat;
-	int	iLng;
-
+	ArrayList<Integer>	Points	= new ArrayList<Integer>();
 	static final double ToInt = 1E7;
 
-	Coordinate(){
-		iLat = iLng = 0;
+	final void Add( double Lng, double Lat ){
+		Points.add(( int )( Lng * ToInt ));
+		Points.add(( int )( Lat * ToInt ));
 	}
 
-	Coordinate( double Lng, double Lat ){
-		Set( Lng, Lat );
+	final LatLng GetCoordinate( int idx ){
+		return new LatLng(
+			Points.get( idx * 2 + 1 ) / ToInt,	// lat
+			Points.get( idx * 2     ) / ToInt	// lng
+		);
 	}
 
-	void Set( double Lng, double Lat ){
-		iLat = ( int )( Lat * ToInt );
-		iLng = ( int )( Lng * ToInt );
+	final int Length(){
+		return Points.size() / 2;
 	}
 
-	LatLng GetCoordinate(){
-		return new LatLng( iLat / ToInt, iLng / ToInt );
+	final void Clear(){
+		Points.clear();
 	}
 }

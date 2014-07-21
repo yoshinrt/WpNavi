@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WP Navi</string>
-    <string name="button_prevwp">&lt;&lt;Prev WP</string>
-    <string name="button_start_navi">Start Navi</string>
-    <string name="button_nextwp">Next WP&gt;&gt;</string><string name="text_usage">Flash usage</string>
-    <string name="pref_savedir">Log save directory</string>
-    <string name="yes">Yes</string>
-    <string name="no">No</string>
-    <string name="text_InvalidKMLFormat">Invalid KML format</string>
-    <string name="text_FileNotFound">File not found</string>
+    <string name="button_prevwp">&lt;&lt;前</string>
+    <string name="button_start_navi">ナビ開始</string>
+    <string name="button_nextwp">次&gt;&gt;</string>
+    <string name="text_InvalidKMLFormat">不正な KML フォーマットです</string>
+    <string name="text_FileNotFound">ファイルが見つかりません</string>
+    <string name="text_OpenKML">KML を開く</string>
+    <string name="text_Setting">設定...</string>
+    <string name="text_Activated">WP0 へナビ中 - WpNavi</string>
 </resources>

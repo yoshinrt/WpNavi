@@ -10,7 +10,8 @@
 	    android:layout_width="match_parent"
 	    android:layout_height="0dp"
 	    android:layout_weight="1"
-		class="com.google.android.gms.maps.SupportMapFragment"/>
+		class="com.google.android.gms.maps.SupportMapFragment"
+	/>
 
     <LinearLayout
         android:id="@+id/linearLayout2"
@@ -22,6 +23,7 @@
             android:layout_width="1000dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="onClickPrevWp"
             android:text="@string/button_prevwp" />
 
         <Button
@@ -37,7 +39,7 @@
             android:layout_width="1000dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="onClickNextWp"
             android:text="@string/button_nextwp" />
-    </LinearLayout>
-
+        </LinearLayout>
 </LinearLayout>

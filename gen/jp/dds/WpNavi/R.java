@@ -534,16 +534,15 @@ containing a value of this type.
         /**  Long form sign-in button text [CHAR LIMIT=30] 
          */
         public static final int common_signin_button_text_long=0x7f05001e;
-        public static final int no=0x7f050027;
-        public static final int pref_savedir=0x7f050025;
-        public static final int text_FileNotFound=0x7f050029;
-        public static final int text_InvalidKMLFormat=0x7f050028;
-        public static final int text_usage=0x7f050024;
+        public static final int text_Activated=0x7f050028;
+        public static final int text_FileNotFound=0x7f050025;
+        public static final int text_InvalidKMLFormat=0x7f050024;
+        public static final int text_OpenKML=0x7f050026;
+        public static final int text_Setting=0x7f050027;
         /**  Text on a placeholder buy button when Google Play services is not
          available or up-to-date 
          */
         public static final int wallet_buy_button_place_holder=0x7f05001f;
-        public static final int yes=0x7f050026;
     }
     public static final class style {
         public static final int Theme_IAPTheme=0x7f040000;
