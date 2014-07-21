@@ -9,4 +9,5 @@
     <string name="text_OpenKML">KML を開く</string>
     <string name="text_Setting">設定...</string>
     <string name="text_Activated">WP%d へナビ中</string>
+    <string name="text_KMLNotLoaded">KML がロードされていません</string>
 </resources>

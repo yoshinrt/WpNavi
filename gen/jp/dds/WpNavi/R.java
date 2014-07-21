@@ -537,6 +537,7 @@ containing a value of this type.
         public static final int text_Activated=0x7f050028;
         public static final int text_FileNotFound=0x7f050025;
         public static final int text_InvalidKMLFormat=0x7f050024;
+        public static final int text_KMLNotLoaded=0x7f050029;
         public static final int text_OpenKML=0x7f050026;
         public static final int text_Setting=0x7f050027;
         /**  Text on a placeholder buy button when Google Play services is not

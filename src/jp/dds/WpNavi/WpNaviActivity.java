@@ -1,6 +1,5 @@
 package jp.dds.WpNavi;
 
-import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -17,7 +16,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.FragmentActivity;
@@ -32,6 +30,8 @@ import android.widget.Toast;
 public class WpNaviActivity extends FragmentActivity {
 
 	static final boolean bDebug = true;
+	Coordinate	WayPoint	= new Coordinate();
+	int	iCurWayPoint		= 0;
 
 	/*** Activity management ************************************************/
 
@@ -51,32 +51,26 @@ public class WpNaviActivity extends FragmentActivity {
 	}
 
 	public void onClickStartNavi( View v ){
+
+		if(  WayPoint.Length() == 0 ){
+			Toast.makeText( this, getResources().getText( R.string.text_KMLNotLoaded ), Toast.LENGTH_LONG ).show();
+			return;
+		}
+
 		// サービス開始
 		StartService();
-		BindService();
-
-		// GMap kill
-		KillGMaps();
-
-		// ナビ起動
-		Intent i = new Intent();
-		i.setAction( Intent.ACTION_VIEW );
-		i.setFlags( Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK );
-		i.setClassName( "com.google.android.apps.maps", "com.google.android.maps.driveabout.app.NavigationActivity" );
-		Uri uri = Uri.parse( "google.navigation:///?ll=35.0,135.0&q=表示名" );
-		i.setData(uri);
-		startActivity(i);
-
-		UnbindService();
+		//BindService();
+		//UnbindService();
 	}
 
 	public void onClickPrevWp( View v ){
-		LoadKML();
+		--iCurWayPoint;
+		if( iCurWayPoint < 0 ) iCurWayPoint = WayPoint.Length() - 1;
 	}
 
 	public void onClickNextWp( View v ){
-		KillGMaps();
-		mMap.clear();
+		++iCurWayPoint;
+		if( iCurWayPoint >= WayPoint.Length()) iCurWayPoint = 0;
 	}
 
 	@Override
@@ -126,11 +120,9 @@ public class WpNaviActivity extends FragmentActivity {
 
 	static final double ToInt = 1E7;
 
-	ArrayList<Integer>	WayPoints	= new ArrayList<Integer>();
-
 	public boolean LoadKML(){
 		int	iState;
-		ArrayList<Integer>	Route	= new ArrayList<Integer>();
+		Coordinate	Route	= new Coordinate();
 
 		if( mMap == null ) return false;
 
@@ -145,8 +137,8 @@ public class WpNaviActivity extends FragmentActivity {
 
 		XmlPullParser xpp = Xml.newPullParser();
 
-		WayPoints.clear();	// WP 等のクリア
-		Route.clear();
+		WayPoint.Clear();	// WP 等のクリア
+		Route.Clear();
 		iState = KML_NONE;
 
 		try{
@@ -178,7 +170,7 @@ public class WpNaviActivity extends FragmentActivity {
 
 						if(( iState & KML_POINT ) != 0 ){
 							// 経由地
-							ParseCoordinate( str, WayPoints );
+							ParseCoordinate( str, WayPoint );
 						}else if(( iState & KML_LINESTRING ) != 0 ){
 							// ルート
 							int c1 = 0, c2;
@@ -224,18 +216,21 @@ public class WpNaviActivity extends FragmentActivity {
 		try{ fsIn.close(); }catch( IOException e ){}
 
 		// 一応数チェック
-		if( Length( WayPoints ) == 0 ){
+		if( WayPoint.Length() == 0 ){
 			Toast.makeText( this, getResources().getText( R.string.text_InvalidKMLFormat ), Toast.LENGTH_LONG ).show();
 			return false;
 		}
 
+		// ここまで来たらロード成功
+
 		mMap.clear();
+		iCurWayPoint = 0;
 
 		// WP を Map に追加
-		for( int i = 0; i < Length( WayPoints ); ++i ){
+		for( int i = 0; i < WayPoint.Length(); ++i ){
 			MarkerOptions options = new MarkerOptions();
 
-			options.position( GetPoint( WayPoints, i ));
+			options.position( WayPoint.GetPoint( i ));
 			options.title( String.format( "WP%d", i + 1 ));
 			//options.snippet(location.toString());
 			mMap.addMarker( options );
@@ -243,8 +238,8 @@ public class WpNaviActivity extends FragmentActivity {
 
 		// Line を Map に追加
 		PolylineOptions options = new PolylineOptions();
-		for( int i = 0; i < Length( Route ) - 1; ++i ){
-			options.add( GetPoint( Route, i ));
+		for( int i = 0; i < Route.Length() - 1; ++i ){
+			options.add( Route.GetPoint( i ));
 		}
 		options.color( 0xFF0000FF );
 		options.width( 6 );
@@ -253,34 +248,17 @@ public class WpNaviActivity extends FragmentActivity {
 		return true;
 	}
 
-	void ParseCoordinate( String str, ArrayList<Integer> Points ){
+	void ParseCoordinate( String str, Coordinate Points ){
 		int c1, c2;
 		if(
 			( c1 = str.indexOf( ',' )) >= 0 &&
 			( c2 = str.indexOf( ',', c1 + 1 )) >= 0
 		){
-			AddPoint(
-				Points,
+			Points.Add(
 				Double.parseDouble( str.substring( 0, c1 )),
 				Double.parseDouble( str.substring( c1 + 1, c2 ))
 			);
 		}
-	}
-
-	final void AddPoint( ArrayList<Integer> Points, double Lng, double Lat ){
-		Points.add(( int )( Lng * ToInt ));
-		Points.add(( int )( Lat * ToInt ));
-	}
-
-	final LatLng GetPoint( ArrayList<Integer> Points, int idx ){
-		return new LatLng(
-			Points.get( idx * 2 + 1 ) / ToInt,	// lat
-			Points.get( idx * 2     ) / ToInt	// lng
-		);
-	}
-
-	final int Length( ArrayList<Integer> Points ){
-		return Points.size() / 2;
 	}
 
 	/*** Option menu ********************************************************/
@@ -330,7 +308,10 @@ public class WpNaviActivity extends FragmentActivity {
 	};
 
 	final void StartService(){
-		startService( new Intent( this, WpNaviService.class ));
+		Intent intent = new Intent( this, WpNaviService.class );
+		intent.putIntegerArrayListExtra( "WayPoint", WayPoint.Points );
+		intent.putExtra( "CurWayPoint", iCurWayPoint );
+		startService( intent );
 	}
 
 	final void StopService(){
@@ -350,22 +331,5 @@ public class WpNaviActivity extends FragmentActivity {
 			unbindService( mConnection );
 			mIsBound = false;
 		}
-	}
-
-	/*** Kill Google Maps ***************************************************/
-
-	final void KillGMaps(){
-		Process process;
-
-		try{
-			process = Runtime.getRuntime().exec( "su" );
-			DataOutputStream dos = new DataOutputStream( process.getOutputStream());
-			dos.writeBytes(
-				"gmap=com.google.android.apps.maps;while ps|grep -q $gmap;do kill -9 `ps|grep $gmap|awk '{ print $2 }'`;done;exit\n"
-			);
-			dos.close();
-
-			process.waitFor();
-		}catch( Exception e ){}
 	}
 }
