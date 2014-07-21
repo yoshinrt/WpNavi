@@ -1,14 +1,16 @@
 package jp.dds.WpNavi;
 
+import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.List;
+import java.util.ArrayList;
 
 import org.xmlpull.v1.XmlPullParser;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import android.content.ComponentName;
@@ -26,9 +28,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
-import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.ActivityManager.RunningAppProcessInfo;
 
 public class WpNaviActivity extends FragmentActivity {
 
@@ -57,7 +56,7 @@ public class WpNaviActivity extends FragmentActivity {
 		BindService();
 
 		// GMap kill
-		android.os.Process.killProcess( android.os.Process.getUidForName( "com.google.android.apps.maps" ));
+		KillGMaps();
 
 		// ナビ起動
 		Intent i = new Intent();
@@ -125,10 +124,13 @@ public class WpNaviActivity extends FragmentActivity {
 	static final int	KML_LINESTRING	= 1 << 1;
 	static final int	KML_COORDINATES	= 1 << 2;
 
+	static final double ToInt = 1E7;
+
+	ArrayList<Integer>	WayPoints	= new ArrayList<Integer>();
+
 	public boolean LoadKML(){
 		int	iState;
-		Coordinate	WayPoints	= new Coordinate();
-		Coordinate	Route		= new Coordinate();
+		ArrayList<Integer>	Route	= new ArrayList<Integer>();
 
 		if( mMap == null ) return false;
 
@@ -143,8 +145,8 @@ public class WpNaviActivity extends FragmentActivity {
 
 		XmlPullParser xpp = Xml.newPullParser();
 
-		WayPoints.Clear();	// WP 等のクリア
-		Route.Clear();
+		WayPoints.clear();	// WP 等のクリア
+		Route.clear();
 		iState = KML_NONE;
 
 		try{
@@ -222,7 +224,7 @@ public class WpNaviActivity extends FragmentActivity {
 		try{ fsIn.close(); }catch( IOException e ){}
 
 		// 一応数チェック
-		if( WayPoints.Length() == 0 ){
+		if( Length( WayPoints ) == 0 ){
 			Toast.makeText( this, getResources().getText( R.string.text_InvalidKMLFormat ), Toast.LENGTH_LONG ).show();
 			return false;
 		}
@@ -230,10 +232,10 @@ public class WpNaviActivity extends FragmentActivity {
 		mMap.clear();
 
 		// WP を Map に追加
-		for( int i = 0; i < WayPoints.Length(); ++i ){
+		for( int i = 0; i < Length( WayPoints ); ++i ){
 			MarkerOptions options = new MarkerOptions();
 
-			options.position( WayPoints.GetCoordinate( i ));
+			options.position( GetPoint( WayPoints, i ));
 			options.title( String.format( "WP%d", i + 1 ));
 			//options.snippet(location.toString());
 			mMap.addMarker( options );
@@ -241,8 +243,8 @@ public class WpNaviActivity extends FragmentActivity {
 
 		// Line を Map に追加
 		PolylineOptions options = new PolylineOptions();
-		for( int i = 0; i < Route.Length() - 1; ++i ){
-			options.add( Route.GetCoordinate( i ));
+		for( int i = 0; i < Length( Route ) - 1; ++i ){
+			options.add( GetPoint( Route, i ));
 		}
 		options.color( 0xFF0000FF );
 		options.width( 6 );
@@ -251,17 +253,34 @@ public class WpNaviActivity extends FragmentActivity {
 		return true;
 	}
 
-	void ParseCoordinate( String str, Coordinate coord ){
+	void ParseCoordinate( String str, ArrayList<Integer> Points ){
 		int c1, c2;
 		if(
 			( c1 = str.indexOf( ',' )) >= 0 &&
 			( c2 = str.indexOf( ',', c1 + 1 )) >= 0
 		){
-			coord.Add(
+			AddPoint(
+				Points,
 				Double.parseDouble( str.substring( 0, c1 )),
 				Double.parseDouble( str.substring( c1 + 1, c2 ))
 			);
 		}
+	}
+
+	final void AddPoint( ArrayList<Integer> Points, double Lng, double Lat ){
+		Points.add(( int )( Lng * ToInt ));
+		Points.add(( int )( Lat * ToInt ));
+	}
+
+	final LatLng GetPoint( ArrayList<Integer> Points, int idx ){
+		return new LatLng(
+			Points.get( idx * 2 + 1 ) / ToInt,	// lat
+			Points.get( idx * 2     ) / ToInt	// lng
+		);
+	}
+
+	final int Length( ArrayList<Integer> Points ){
+		return Points.size() / 2;
 	}
 
 	/*** Option menu ********************************************************/
@@ -336,44 +355,17 @@ public class WpNaviActivity extends FragmentActivity {
 	/*** Kill Google Maps ***************************************************/
 
 	final void KillGMaps(){
-		ActivityManager activityManager = (( ActivityManager )getApplicationContext().getSystemService( Activity.ACTIVITY_SERVICE ));
-		//activityManager.restartPackage( "jp.dds.WpNavi" );
-		
-		activityManager.killBackgroundProcesses( "com.google.android.apps.maps" );
-		
-		List<RunningAppProcessInfo> procInfo = activityManager.getRunningAppProcesses();
-		for( int i = 0; i < procInfo.size(); i++ ){
-			Log.v( "WpNavi", "proces " + i + procInfo.get( i ).processName + " pid:" + procInfo.get( i ).pid + " importance: " + procInfo.get( i ).importance + " reason: " + procInfo.get( i ).importanceReasonCode );
-			//First I display all processes into the log
+		Process process;
 
-			if( procInfo.get( i ).processName.equals( "com.google.android.apps.maps" )){
-				android.os.Process.killProcess( procInfo.get( i ).pid );
-				break;
-			}
-		}
-		/*
-		for( int i = 0; i < procInfo.size(); i++ ){
-			RunningAppProcessInfo process = procInfo.get( i );
-			int importance = process.importance;
-			int pid = process.pid;
-			String name = process.processName;
-			if( name.equals( "manager.main" )){
-				//I dont want to kill this application
-				continue;
-			}
-			if( importance == RunningAppProcessInfo.IMPORTANCE_SERVICE ){
-				//From what I have read about importances at android developers, I asume that I can safely kill everithing except for services, am I right?
-				Log.v( "manager","task " + name + " pid: " + pid + " has importance: " + importance + " WILL NOT KILL" );
-				continue;
-			}
-			Log.v( "manager","task " + name + " pid: " + pid + " has importance: " + importance + " WILL KILL" );
-			android.os.Process.killProcess( procInfo.get( i ).pid );
-		}
-		procInfo = activityManager.getRunningAppProcesses();
-		//I get a new list with running tasks
-		for( int i = 0; i < procInfo.size(); i++ ){
-			Log.v( "proces after killings" + i,procInfo.get( i ).processName + " pid:" + procInfo.get( i ).pid + " importance: " + procInfo.get( i ).importance + " reason: " + procInfo.get( i ).importanceReasonCode );
-		}
-		*/
+		try{
+			process = Runtime.getRuntime().exec( "su" );
+			DataOutputStream dos = new DataOutputStream( process.getOutputStream());
+			dos.writeBytes(
+				"gmap=com.google.android.apps.maps;while ps|grep -q $gmap;do kill -9 `ps|grep $gmap|awk '{ print $2 }'`;done;exit\n"
+			);
+			dos.close();
+
+			process.waitFor();
+		}catch( Exception e ){}
 	}
 }
