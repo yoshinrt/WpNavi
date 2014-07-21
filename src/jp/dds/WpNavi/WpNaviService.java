@@ -1,8 +1,6 @@
 package jp.dds.WpNavi;
 
 import java.io.DataOutputStream;
-import java.util.ArrayList;
-
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -136,7 +134,7 @@ public class WpNaviService extends Service implements LocationListener{
 			WayPoint.GetLng( iCurWayPoint ) + "," +
 			WayPoint.GetLat( iCurWayPoint )
 		);
-		
+
 		KillGMaps();
 
 		Intent i = new Intent();
