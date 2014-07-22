@@ -20,7 +20,7 @@ public class WpNaviService extends Service implements LocationListener{
 	static final boolean bDebug = WpNaviActivity.bDebug;
 
 	Coordinate	WayPoint;
-	int	iCurWayPoint		= 0;
+	int		iCurWayPoint	= 0;
 
 	/************************************************************************/
 
@@ -30,7 +30,7 @@ public class WpNaviService extends Service implements LocationListener{
 	@Override
 	public void onCreate(){
 		if( bDebug ) Log.d( "WpNavi", "Service::onCreate" );
-		String strNotifyMsg = String.format(( String )getResources().getText( R.string.text_Activated ), iCurWayPoint );
+		String strNotifyMsg = String.format(( String )getResources().getText( R.string.text_Activated ), iCurWayPoint + 1 );
 
 		// notification 設定
 		notificationManager = ( NotificationManager )getSystemService( NOTIFICATION_SERVICE );
@@ -106,7 +106,7 @@ public class WpNaviService extends Service implements LocationListener{
 	@Override
 	public IBinder onBind( Intent intent ){
 		if( bDebug ) Log.d( "WpNavi", "Service::onBind" );
-		return null;
+		return new WpNaviServiceLocalBinder();
 	}
 
 	@Override
@@ -126,17 +126,18 @@ public class WpNaviService extends Service implements LocationListener{
             return WpNaviService.this;
         }
     }
-
+	
     /*** ナビ起動 ***************************************************************/
-
+	
 	final void StartNavi(){
 		if( bDebug ) Log.d( "WpNavi", "StartNavi:WP" + iCurWayPoint + ":" +
 			WayPoint.GetLng( iCurWayPoint ) + "," +
 			WayPoint.GetLat( iCurWayPoint )
 		);
-
+		
 		KillGMaps();
-
+		
+		// インテントを投げる
 		Intent i = new Intent();
 		i.setAction( Intent.ACTION_VIEW );
 		i.setFlags( Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK );
@@ -164,16 +165,6 @@ public class WpNaviService extends Service implements LocationListener{
 				StartNavi();
 			}
 		}
-
-		/*
-		// 緯度の表示
-		TextView tv_lat = (TextView) findViewById(R.id.Latitude);
-		tv_lat.setText("Latitude:"+location.getLatitude());
-
-		// 経度の表示
-		TextView tv_lng = (TextView) findViewById(R.id.Longitude);
-		tv_lng.setText("Latitude:"+location.getLongitude());
-		*/
 	}
 
 	@Override

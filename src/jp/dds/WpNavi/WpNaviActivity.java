@@ -3,13 +3,10 @@ package jp.dds.WpNavi;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-
 import org.xmlpull.v1.XmlPullParser;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
-import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import android.content.ComponentName;
@@ -43,15 +40,16 @@ public class WpNaviActivity extends FragmentActivity {
 	}
 
 	@Override
-	protected void onResume() {
+	protected void onResume(){
 		super.onResume();
-
+		
 		// 画面が表示されるということはオートパイロットは停止
 		StopService();
 	}
 
 	public void onClickStartNavi( View v ){
-
+		LoadKML();
+		
 		if(  WayPoint.Length() == 0 ){
 			Toast.makeText( this, getResources().getText( R.string.text_KMLNotLoaded ), Toast.LENGTH_LONG ).show();
 			return;
@@ -59,8 +57,12 @@ public class WpNaviActivity extends FragmentActivity {
 
 		// サービス開始
 		StartService();
+		// サービスに接続して，onServiceConnected で実際に
+		// サービスの状態を get してから，サービスを止める
 		//BindService();
 		//UnbindService();
+		
+		finish();
 	}
 
 	public void onClickPrevWp( View v ){
