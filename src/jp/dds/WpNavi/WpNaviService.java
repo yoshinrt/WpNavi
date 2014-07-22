@@ -144,7 +144,7 @@ public class WpNaviService extends Service implements LocationListener{
 		i.setClassName( "com.google.android.apps.maps", "com.google.android.maps.driveabout.app.NavigationActivity" );
 		Uri uri = Uri.parse( "google.navigation:///?ll=" +
 				WayPoint.GetLat( iCurWayPoint ) + "," +
-				WayPoint.GetLng( iCurWayPoint ) + "&q=WP" + iCurWayPoint
+				WayPoint.GetLng( iCurWayPoint ) + "&q=WP" + ( iCurWayPoint + 1 )
 		);
 		i.setData(uri);
 		startActivity(i);

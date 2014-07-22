@@ -120,8 +120,6 @@ public class WpNaviActivity extends FragmentActivity {
 	static final int	KML_LINESTRING	= 1 << 1;
 	static final int	KML_COORDINATES	= 1 << 2;
 
-	static final double ToInt = 1E7;
-
 	public boolean LoadKML(){
 		int	iState;
 		Coordinate	Route	= new Coordinate();
