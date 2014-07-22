@@ -33,6 +33,8 @@ public class WpNaviActivity extends FragmentActivity {
 	/*** Activity management ************************************************/
 
 	public void onCreate( Bundle savedInstanceState ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onCreate" );
+		
 		super.onCreate( savedInstanceState );
 
 		setContentView( R.layout.main );
@@ -41,10 +43,16 @@ public class WpNaviActivity extends FragmentActivity {
 
 	@Override
 	protected void onResume(){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onResume" );
 		super.onResume();
-		
-		// 画面が表示されるということはオートパイロットは停止
-		StopService();
+		BindService();
+	}
+
+	@Override
+	protected void onPause(){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onPause" );
+		super.onPause();
+		UnbindService();
 	}
 
 	public void onClickStartNavi( View v ){
@@ -54,15 +62,9 @@ public class WpNaviActivity extends FragmentActivity {
 			Toast.makeText( this, getResources().getText( R.string.text_KMLNotLoaded ), Toast.LENGTH_LONG ).show();
 			return;
 		}
-
+		
 		// サービス開始
 		StartService();
-		// サービスに接続して，onServiceConnected で実際に
-		// サービスの状態を get してから，サービスを止める
-		//BindService();
-		//UnbindService();
-		
-		finish();
 	}
 
 	public void onClickPrevWp( View v ){
@@ -77,11 +79,13 @@ public class WpNaviActivity extends FragmentActivity {
 
 	@Override
 	protected void onActivityResult( int requestCode, int resultCode, Intent data ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onActivityResult" );
 		//finish();
 	}
 
 	@Override
 	protected void onDestroy(){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
 		super.onDestroy();
 	}
 
@@ -284,7 +288,7 @@ public class WpNaviActivity extends FragmentActivity {
 	/*** Service ************************************************************/
 
 	//取得したServiceの保存
-	private WpNaviService mBoundService;
+	private WpNaviService mService = null;
 	private boolean mIsBound;
 
 	private ServiceConnection mConnection = new ServiceConnection(){
@@ -295,7 +299,16 @@ public class WpNaviActivity extends FragmentActivity {
 			if( bDebug ) Log.d( "WpNavi", "WpNavi::onServiceConnected" );
 
 			// サービスにはIBinder経由で#getService()してダイレクトにアクセス可能
-			mBoundService = (( WpNaviService.WpNaviServiceLocalBinder )service ).getService();
+			mService = (( WpNaviService.WpNaviServiceLocalBinder )service ).getService();
+			
+			// サービスの WP 状態を取得，
+			// ナビをリスタートした直後でなければ StopService()
+			int iStatus;
+			if(( iStatus =  mService.GetStatus()) != WpNaviService.STATUS_RESTART ){
+				iCurWayPoint = iStatus;
+				if( bDebug ) Log.d( "WpNavi", "Service's WP=" + iCurWayPoint );
+				mService.Stop();
+			}
 		}
 
 		@Override
@@ -303,7 +316,7 @@ public class WpNaviActivity extends FragmentActivity {
 			if( bDebug ) Log.d( "WpNavi", "WpNavi::onServiceDisconnected" );
 			// サービスとの切断( 異常系処理 )
 			// プロセスのクラッシュなど意図しないサービスの切断が発生した場合に呼ばれる。
-			mBoundService = null;
+			mService = null;
 		}
 	};
 
