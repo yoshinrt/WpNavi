@@ -18,23 +18,31 @@ import android.util.Log;
 
 public class WpNaviService extends Service implements LocationListener{
 	static final boolean bDebug = WpNaviActivity.bDebug;
+	static final boolean bRestartTest = true;
 
-	static final int STATUS_NORMAL	= 0;
-	static final int STATUS_RESTART	= 0x80000000;
+	static final int STATUS_IDLE	= 0;
+	static final int STATUS_NORMAL	= 1;
+	static final int STATUS_RESTART	= 2;
 
 	Coordinate	WayPoint;
 	int		iCurWayPoint	= 0;
 	long	iRestartTime	= 0;
+	int		iNextDistance	= 50;
+	int		iWaitTime		= 0;
+
+	boolean	bRunning		= false;
 
 	/************************************************************************/
 
 	LocationManager mLocationManager = null;
 	NotificationManager notificationManager = null;
 
+	/*
 	@Override
 	public void onCreate(){
 		if( bDebug ) Log.d( "WpNavi", "Service::onCreate" );
 	}
+	*/
 
 	/*** サービスハンドラ ***************************************************/
 
@@ -44,7 +52,6 @@ public class WpNaviService extends Service implements LocationListener{
 		GetLocationManager();
 
 		WayPoint = new Coordinate( intent.getIntegerArrayListExtra( "WayPoint" ));
-		iCurWayPoint = intent.getIntExtra( "CurWayPoint", 0 );
 
 		if( bDebug ) Log.d( "WpNavi",
 			String.format(
@@ -52,7 +59,6 @@ public class WpNaviService extends Service implements LocationListener{
 				iCurWayPoint, WayPoint.Length()
 			)
 		);
-
 		StartNavi();
 		return START_NOT_STICKY;
 	}
@@ -62,6 +68,7 @@ public class WpNaviService extends Service implements LocationListener{
 		if( bDebug ) Log.d( "WpNavi", "Service::onDestroy" );
 		CancelNotification();
 		RemoveLocationManager();
+		bRunning = false;
 	}
 
 	@Override
@@ -70,6 +77,7 @@ public class WpNaviService extends Service implements LocationListener{
 		return new WpNaviServiceLocalBinder();
 	}
 
+	/*
 	@Override
 	public void onRebind(Intent intent) {
 		if( bDebug ) Log.d( "WpNavi", "Service::onRebind" );
@@ -78,14 +86,9 @@ public class WpNaviService extends Service implements LocationListener{
 	@Override
 	public boolean onUnbind( Intent intent ){
 		if( bDebug ) Log.d( "WpNavi", "Service::onUnbind" );
-		return true;
+		return false;
 	}
-
-	public void Stop(){
-		CancelNotification();
-		RemoveLocationManager();
-		stopSelf();
-	}
+	*/
 
     public class WpNaviServiceLocalBinder extends Binder {
         //サービスの取得
@@ -97,8 +100,10 @@ public class WpNaviService extends Service implements LocationListener{
 	int GetStatus(){
 		// サービス状態を返す
 		// ナビリスタートから 5秒以内は RESTART を返す
-		return ( System.currentTimeMillis() - iRestartTime ) < 5000 ?
-			STATUS_RESTART : iCurWayPoint;
+		return
+			!bRunning ? STATUS_IDLE :
+			( System.currentTimeMillis() - iRestartTime ) < ( 5000 + iWaitTime ) ?
+			STATUS_RESTART : STATUS_NORMAL;
 	}
 
     /*** ナビ起動 ***************************************************************/
@@ -109,10 +114,13 @@ public class WpNaviService extends Service implements LocationListener{
 			WayPoint.GetLat( iCurWayPoint )
 		);
 
+		bRunning = true;
+
 		SetNotification();
 		iRestartTime = System.currentTimeMillis();
 
 		KillGMaps();
+		try{ Thread.sleep( iWaitTime ); }catch( InterruptedException e ){}
 
 		// インテントを投げる
 		Intent i = new Intent();
@@ -123,8 +131,15 @@ public class WpNaviService extends Service implements LocationListener{
 			WayPoint.GetLat( iCurWayPoint ) + "," +
 			WayPoint.GetLng( iCurWayPoint ) + "&q=WP" + ( iCurWayPoint + 1 )
 		);
-		i.setData(uri);
-		startActivity(i);
+		i.setData( uri );
+		startActivity( i );
+	}
+
+	public void StopNavi(){
+		bRunning = false;
+		CancelNotification();
+		RemoveLocationManager();
+		stopSelf();
 	}
 
 	/*** GPS ハンドラ ***********************************************************/
@@ -165,34 +180,36 @@ public class WpNaviService extends Service implements LocationListener{
 
 	@Override
 	public void onLocationChanged( Location location ){
-		if( bDebug ) Log.d( "WpNavi", "GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude() );
+		//if( bDebug ) Log.d( "WpNavi", "GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude());
 
-		if( ++iCnt >= 15 ){
-			iCnt = 0;
-			if( iCurWayPoint < WayPoint.Length() - 1 ){
-				++iCurWayPoint;
+		if( !bRestartTest ){
+			// 経由地に近づいたらナビ起動
+			if(
+				WayPoint.GetLength( iCurWayPoint, location.getLongitude(), location.getLatitude()) <= iNextDistance &&
+				++iCurWayPoint < WayPoint.Length()
+			){
 				StartNavi();
 			}
+			if( iCurWayPoint == WayPoint.Length() - 1 ) StopNavi();
+		}else if( ++iCnt >= 15 ){
+			// テスト用，規定時間でナビ起動
+			iCnt = 0;
+			if( ++iCurWayPoint < WayPoint.Length()) StartNavi();
+			if( iCurWayPoint == WayPoint.Length() - 1 ) StopNavi();
 		}
 	}
 
 	@Override
-	public void onProviderDisabled(String provider) {
-		// TODO Auto-generated method stub
-	}
+	public void onProviderDisabled(String provider) {}
 
 	@Override
-	public void onProviderEnabled(String provider) {
-		// TODO Auto-generated method stub
-	}
+	public void onProviderEnabled(String provider) {}
 
 	@Override
-	public void onStatusChanged(String provider, int status, Bundle extras) {
-		// TODO Auto-generated method stub
-	}
+	public void onStatusChanged(String provider, int status, Bundle extras) {}
 
 	/*** Notification *******************************************************/
-	
+
 	void SetNotification(){
 		String strNotifyMsg = String.format(( String )getResources().getText( R.string.text_Activated ), iCurWayPoint + 1 );
 
@@ -200,7 +217,7 @@ public class WpNaviService extends Service implements LocationListener{
 		if( notificationManager == null ){
 			notificationManager = ( NotificationManager )getSystemService( NOTIFICATION_SERVICE );
 		}
-		
+
 		Notification notification = new Notification(
 			android.R.drawable.ic_menu_directions,
 			strNotifyMsg,
@@ -222,12 +239,12 @@ public class WpNaviService extends Service implements LocationListener{
 		);
 		notificationManager.notify( R.string.app_name, notification );
 	}
-	
+
 	void CancelNotification(){
 		if( notificationManager != null ) notificationManager.cancelAll();
 		notificationManager = null;
 	}
-	
+
 	/*** Kill Google Maps ***************************************************/
 
 	final void KillGMaps(){
