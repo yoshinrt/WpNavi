@@ -25,7 +25,7 @@ public class WpNaviService extends Service implements LocationListener{
 	static final int STATUS_RESTART	= 2;
 
 	Coordinate	WayPoint;
-	
+
 	int		iCurWayPoint	= 0;
 	long	iRestartTime	= 0;
 	int		iNextDistance	= 50;
@@ -47,9 +47,9 @@ public class WpNaviService extends Service implements LocationListener{
 	@Override
 	public int onStartCommand( Intent intent, int flags, int startId ){
 		GetLocationManager();
-		
+
 		WayPoint = new Coordinate( intent.getIntegerArrayListExtra( "WayPoint" ));
-		
+
 		if( bDebug ) Log.d( "WpNavi",
 			String.format(
 				"Service::onStartCommand:WP=%d num=%d",

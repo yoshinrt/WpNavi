@@ -10,6 +10,6 @@
     <string name="text_Setting">設定...</string>
     <string name="text_Activated">WP%d へナビ中</string>
     <string name="text_KMLNotLoaded">KML がロードされていません</string>
-    <string name="pref_next_distance">経由地に到着したとみなす距離</string>
+    <string name="pref_next_distance">経由地の範囲 (半径)</string>
     <string name="pref_wait_time">ナビ再起動時の待ち時間</string>
 </resources>

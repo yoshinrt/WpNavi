@@ -1,5 +1,6 @@
 package jp.dds.WpNavi;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -37,7 +38,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
-public class WpNaviActivity extends FragmentActivity {
+public class WpNaviActivity extends FragmentActivity implements FileOpenDialogListener {
 
 	static final boolean bDebug = true;
 
@@ -87,7 +88,7 @@ public class WpNaviActivity extends FragmentActivity {
 			});
 
 			// KML ロード
-			strKmlFile = Pref.getString( "key_kml_file", Environment.getExternalStorageDirectory().getPath() + "/test.kml" );
+			strKmlFile = Pref.getString( "key_kml_file", null );
 			if( strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( strKmlFile );
 		}
 	}
@@ -370,7 +371,8 @@ public class WpNaviActivity extends FragmentActivity {
 	public boolean onOptionsItemSelected( MenuItem item ){
 		switch( item.getItemId()){
 			case R.id.itemLoadKML:
-				//LoadKML();
+				FileOpenDialog fod = new FileOpenDialog( this, this, false );
+				fod.openDirectory( Environment.getExternalStorageDirectory().getPath());
 				return true;
 
 			case R.id.itemSetting:
@@ -379,6 +381,13 @@ public class WpNaviActivity extends FragmentActivity {
 				return true;
 		}
 		return false;
+	}
+
+	public void onFileSelected( File file ){
+
+		if( LoadKML( file.getAbsolutePath())){
+			strKmlFile = file.getAbsolutePath();
+		}
 	}
 
 	/*** Service ************************************************************/
