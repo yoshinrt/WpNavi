@@ -44,6 +44,7 @@ public class WpNaviActivity extends FragmentActivity {
 	int	iCurWayPoint		= 0;
 	Coordinate	WayPoint	= new Coordinate();
 	SharedPreferences Pref	= null;
+	String	strKmlFile		= null;
 
 	ArrayList<Marker>	Markers = new ArrayList<Marker>();
 
@@ -67,6 +68,7 @@ public class WpNaviActivity extends FragmentActivity {
 		BindService();
 
 		if( mMap != null ){
+			// Map 移動
 			CameraPosition cameraPos = new CameraPosition.Builder()
 				.target( new LatLng( Pref.getFloat( "key_gmap_lat", 36.4f ), Pref.getFloat( "key_gmap_lng", 137.5f )))
 				.zoom( Pref.getFloat( "key_gmap_zoom", 5 ))
@@ -74,6 +76,7 @@ public class WpNaviActivity extends FragmentActivity {
 				.build();
 			mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
 
+			// マーカークリックリスナー登録
 			mMap.setOnMarkerClickListener( new OnMarkerClickListener(){
 				@Override
 				public boolean onMarkerClick( Marker marker ){
@@ -83,6 +86,9 @@ public class WpNaviActivity extends FragmentActivity {
 				}
 			});
 
+			// KML ロード
+			strKmlFile = Pref.getString( "key_kml_file", Environment.getExternalStorageDirectory().getPath() + "/test.kml" );
+			if( strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( strKmlFile );
 		}
 	}
 
@@ -99,13 +105,12 @@ public class WpNaviActivity extends FragmentActivity {
 		ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 		ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
 		ed.putFloat( "key_gmap_zoom", cam.zoom );
+		ed.putString( "key_kml_file", strKmlFile );
 		ed.commit();
 	}
 
 	public void onClickStartNavi( View v ){
-		if( WayPoint.Length() == 0 ) LoadKML();
-
-		if( WayPoint.Length() == 0 ){
+		if( WayPoint.Size() == 0 ){
 			Toast.makeText( this, getResources().getText( R.string.text_KMLNotLoaded ), Toast.LENGTH_LONG ).show();
 			return;
 		}
@@ -116,13 +121,13 @@ public class WpNaviActivity extends FragmentActivity {
 
 	public void onClickPrevWp( View v ){
 		int iNewWp = iCurWayPoint - 1;
-		if( iNewWp < 0 ) iNewWp = WayPoint.Length() - 1;
+		if( iNewWp < 0 ) iNewWp = WayPoint.Size() - 1;
 		SetMoveCurWayPoint( iNewWp );
 	}
 
 	public void onClickNextWp( View v ){
 		int iNewWp = iCurWayPoint + 1;
-		if( iNewWp >= WayPoint.Length()) iNewWp = 0;
+		if( iNewWp >= WayPoint.Size()) iNewWp = 0;
 		SetMoveCurWayPoint( iNewWp );
 	}
 
@@ -203,7 +208,7 @@ public class WpNaviActivity extends FragmentActivity {
 	static final int	KML_LINESTRING	= 1 << 1;
 	static final int	KML_COORDINATES	= 1 << 2;
 
-	public boolean LoadKML(){
+	public boolean LoadKML( String strKmlFile ){
 		int	iState;
 
 		if( mMap == null ) return false;
@@ -211,7 +216,7 @@ public class WpNaviActivity extends FragmentActivity {
 		// KMK を開く
 		FileInputStream fsIn;
 		try {
-			fsIn = new FileInputStream( Environment.getExternalStorageDirectory().getPath() + "/test.kml" );
+			fsIn = new FileInputStream( strKmlFile );
 		}catch( FileNotFoundException e ){
 			Toast.makeText( this, getResources().getText( R.string.text_FileNotFound ), Toast.LENGTH_LONG ).show();
 			return false;
@@ -224,6 +229,7 @@ public class WpNaviActivity extends FragmentActivity {
 
 		double[] Point = new double[ 2 ];
 		PolylineOptions PolyLineOpt = new PolylineOptions();
+		int iMinDistance = GetPrefInt( "key_next_distance", 50 );
 
 		try{
 			xpp.setInput( fsIn, "UTF-8" );
@@ -255,7 +261,13 @@ public class WpNaviActivity extends FragmentActivity {
 						if(( iState & KML_POINT ) != 0 ){
 							// 経由地
 							ParseCoordinate( str, Point );
-							WayPoint.Add( Point[ 0 ], Point[ 1 ] );
+							if(
+								WayPoint.Size() == 0 ||
+								WayPoint.Distance( WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] ) >=
+								iMinDistance
+							){
+								WayPoint.Add( Point[ 0 ], Point[ 1 ] );
+							}
 						}else if(( iState & KML_LINESTRING ) != 0 ){
 							// ルート
 							int c1 = 0, c2;
@@ -302,7 +314,7 @@ public class WpNaviActivity extends FragmentActivity {
 		try{ fsIn.close(); }catch( IOException e ){}
 
 		// 一応数チェック
-		if( WayPoint.Length() == 0 ){
+		if( WayPoint.Size() == 0 ){
 			Toast.makeText( this, getResources().getText( R.string.text_InvalidKMLFormat ), Toast.LENGTH_LONG ).show();
 			return false;
 		}
@@ -314,7 +326,7 @@ public class WpNaviActivity extends FragmentActivity {
 		iCurWayPoint = 0;
 
 		// WP を Map に追加
-		for( int i = 0; i < WayPoint.Length(); ++i ){
+		for( int i = 0; i < WayPoint.Size(); ++i ){
 			MarkerOptions MakerOpt = new MarkerOptions();
 			MakerOpt.position( WayPoint.GetPoint( i ));
 			MakerOpt.title( String.format( "WP%d", i + 1 ));
@@ -358,7 +370,7 @@ public class WpNaviActivity extends FragmentActivity {
 	public boolean onOptionsItemSelected( MenuItem item ){
 		switch( item.getItemId()){
 			case R.id.itemLoadKML:
-				LoadKML();
+				//LoadKML();
 				return true;
 
 			case R.id.itemSetting:
@@ -387,12 +399,12 @@ public class WpNaviActivity extends FragmentActivity {
 
 			// サービスの WP 状態を取得，
 			// ナビをリスタートした直後でなければ StopService()
-			int iStatus;
-			if(( iStatus =  mService.GetStatus()) != WpNaviService.STATUS_RESTART ){
+			int iStatus = mService.GetStatus();
+			if( iStatus != WpNaviService.STATUS_RESTART ){
 				if( iStatus == WpNaviService.STATUS_NORMAL ) SetCurWayPoint( mService.iCurWayPoint );
-				if( bDebug ) Log.d( "WpNavi", "Service's WP=" + iCurWayPoint );
 				mService.StopNavi();
 			}
+			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + iCurWayPoint );
 		}
 
 		@Override

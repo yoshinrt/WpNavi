@@ -33,7 +33,7 @@ public class Coordinate {
 		return Points.get( idx * 2 + 1 ) / ToInt;	// lat
 	}
 
-	final int Length(){
+	final int Size(){
 		return Points.size() / 2;
 	}
 
@@ -41,27 +41,27 @@ public class Coordinate {
 		Points.clear();
 	}
 
-	static final double GetLength(
+	static final double _a	= 6378137.000;
+	static final double _b	= 6356752.314245;
+	static final double _e2	= ( _a * _a - _b * _b ) / ( _a * _a );
+	static final double ToRAD = Math.PI / 180;
+
+	static final double Distance(
 		double dLong0, double dLati0,
 		double dLong1, double dLati1
 	){
 		// ヒュベニの公式 http://yamadarake.jp/trdi/report000001.html
-		final double a	= 6378137.000;
-		final double b	= 6356752.314245;
-		final double e2	= ( a * a - b * b ) / ( a * a );
-		final double ToRAD = 180 / Math.PI;
-
 		double dx	= ( dLong1 - dLong0 ) * ToRAD;
 		double dy	= ( dLati1 - dLati0 ) * ToRAD;
 		double uy	= ( dLati0 + dLati1 ) / 2 * ToRAD;
-		double W	= Math.sqrt( 1 - e2 * Math.sin( uy ) * Math.sin( uy ));
-		double M	= a * ( 1 - e2 ) / Math.pow( W, 3 );
-		double N	= a / W;
+		double W	= Math.sqrt( 1 - _e2 * Math.sin( uy ) * Math.sin( uy ));
+		double M	= _a * ( 1 - _e2 ) / Math.pow( W, 3 );
+		double N	= _a / W;
 
 		return	Math.sqrt( dy * dy * M * M + Math.pow( dx * N * Math.cos( uy ), 2 ));
 	}
 
-	final double GetLength( int iIdx, double dLong0, double dLati0 ){
-		return GetLength( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
+	final double Distance( int iIdx, double dLong0, double dLati0 ){
+		return Distance( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
 	}
 }

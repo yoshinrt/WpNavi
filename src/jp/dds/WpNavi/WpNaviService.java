@@ -25,17 +25,17 @@ public class WpNaviService extends Service implements LocationListener{
 	static final int STATUS_RESTART	= 2;
 
 	Coordinate	WayPoint;
+	
 	int		iCurWayPoint	= 0;
 	long	iRestartTime	= 0;
 	int		iNextDistance	= 50;
 	int		iWaitTime		= 0;
-
 	boolean	bRunning		= false;
 
-	/************************************************************************/
+	LocationManager		mLocationManager	= null;
+	NotificationManager	notificationManager	= null;
 
-	LocationManager mLocationManager = null;
-	NotificationManager notificationManager = null;
+	/*** サービスハンドラ ***************************************************/
 
 	/*
 	@Override
@@ -44,19 +44,16 @@ public class WpNaviService extends Service implements LocationListener{
 	}
 	*/
 
-	/*** サービスハンドラ ***************************************************/
-
 	@Override
 	public int onStartCommand( Intent intent, int flags, int startId ){
-
 		GetLocationManager();
-
+		
 		WayPoint = new Coordinate( intent.getIntegerArrayListExtra( "WayPoint" ));
-
+		
 		if( bDebug ) Log.d( "WpNavi",
 			String.format(
 				"Service::onStartCommand:WP=%d num=%d",
-				iCurWayPoint, WayPoint.Length()
+				iCurWayPoint, WayPoint.Size()
 			)
 		);
 		StartNavi();
@@ -185,17 +182,17 @@ public class WpNaviService extends Service implements LocationListener{
 		if( !bRestartTest ){
 			// 経由地に近づいたらナビ起動
 			if(
-				WayPoint.GetLength( iCurWayPoint, location.getLongitude(), location.getLatitude()) <= iNextDistance &&
-				++iCurWayPoint < WayPoint.Length()
+				WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude()) <= iNextDistance &&
+				++iCurWayPoint < WayPoint.Size()
 			){
 				StartNavi();
 			}
-			if( iCurWayPoint == WayPoint.Length() - 1 ) StopNavi();
+			if( iCurWayPoint == WayPoint.Size() - 1 ) StopNavi();
 		}else if( ++iCnt >= 15 ){
 			// テスト用，規定時間でナビ起動
 			iCnt = 0;
-			if( ++iCurWayPoint < WayPoint.Length()) StartNavi();
-			if( iCurWayPoint == WayPoint.Length() - 1 ) StopNavi();
+			if( ++iCurWayPoint < WayPoint.Size()) StartNavi();
+			if( iCurWayPoint == WayPoint.Size() - 1 ) StopNavi();
 		}
 	}
 
