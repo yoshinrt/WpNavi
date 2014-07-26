@@ -32,8 +32,6 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 	private File[] mFileList;					// 表示中のファイルのリスト
 
 	private String mCurrDirectory		= null;	// 今居るディレクトリ
-	private Stack<String> mDirectorys	= new Stack<String>();	// ディレクトリ
-
 	private FileOpenDialogListener mListener;	// リスナー
 
 	private boolean mOpenDirectory;				// ディレクトリを開く
@@ -47,15 +45,9 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 	 */
 	public FileOpenDialog(final Context parent, final FileOpenDialogListener listener, boolean openDirectory) {
 		super();
-
-		// コンテキスト
-		this.mParent = parent;
-
-		// リスナー
-		this.mListener = listener;
-
-		// ディレクトリだけを開くか
-		this.mOpenDirectory = openDirectory;
+		mParent			= parent;			// コンテキスト
+		mListener		= listener;			// リスナー
+		mOpenDirectory	= openDirectory;	// ディレクトリだけを開くか
 	}
 
 	/**
@@ -64,41 +56,33 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 	public void onClick(DialogInterface dialog, int which) {
 
 		// 今の選択されているモノ
-		this.mSelectedItemIndex = which;
+		mSelectedItemIndex = which;
 
-		// ファイルリストが空じゃない
-		if (this.mFileList != null) {
+		int selectedItemIndex = mSelectedItemIndex;	// 選択されている項目
 
-			int selectedItemIndex = this.mSelectedItemIndex;	// 選択されている項目
+		// 上の階層がある場合
+		if( !mCurrDirectory.equals( "/" )){
+			// 上の階層ボタン分減らす
+			selectedItemIndex--;
+		}
 
-			// 上の階層がある場合
-			if (0 < this.mDirectorys.size()) {
-				// 上の階層ボタン分減らす
-				selectedItemIndex--;
-			}
+		// 上の階層へが選択されてた
+		if (selectedItemIndex < 0) {
+			// 一つ上の階層へ移動する
+			openDirectory(( new File( mCurrDirectory )).getParent());
+		} else {
+			// ファイルを取り出す
+			mLastSelectedItem = mFileList[selectedItemIndex];
 
-			// 上の階層へが選択されてた
-			if (selectedItemIndex < 0) {
-				// 一つ上の階層へ移動する
-				this.openDirectory(this.mDirectorys.pop());
+			// ディレクトリの場合はそのディレクトリのモノを表示する
+			if (mLastSelectedItem.isDirectory()) {
+				// 次の階層で新しくダイアログを開く
+				openDirectory(mLastSelectedItem.getAbsolutePath());
+
+			// ファイルだった場合は、そのファイルを選択されたファイルとして登録する
 			} else {
-
-				// ファイルを取り出す
-				this.mLastSelectedItem = this.mFileList[selectedItemIndex];
-				// ディレクトリの場合はそのディレクトリのモノを表示する
-				if (this.mLastSelectedItem.isDirectory()) {
-
-					// 次の階層に移動する前に、今の階層に戻れる様にスタックに積んでおく
-					this.mDirectorys.push(this.mCurrDirectory);
-
-					// 次の階層で新しくダイアログを開く
-					this.openDirectory(this.mLastSelectedItem.getAbsolutePath());
-
-				// ファイルだった場合は、そのファイルを選択されたファイルとして登録する
-				} else {
-					// ファイルが選択されたことを通知する
-					this.mListener.onFileSelected(this.mLastSelectedItem);
-				}
+				// ファイルが選択されたことを通知する
+				mListener.onFileSelected(mLastSelectedItem);
 			}
 		}
 	}
@@ -109,10 +93,14 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 	 */
 	public void openDirectory(String dir) {
 		try {
+			// dir がファイル名だった場合，その parent を開く
+			File file = new File( dir );
+			if( file.isFile()) dir = file.getParent();
+
 			// ディレクトリだけ取り出したい
-			if (this.mOpenDirectory == true) {
+			/*if (mOpenDirectory == true) {
 				// ディレクトリだけ取り出す(フィルタ使う)
-				this.mFileList = new File(dir).listFiles(new FileFilter() {
+				mFileList = new File(dir).listFiles(new FileFilter() {
 					public boolean accept(File pathname) {
 						// ディレクトリだけ許可
 						if (pathname.isDirectory())
@@ -120,9 +108,9 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 						return false;
 					}
 				});
-			} else {
+			} else */{
 				// 指定のディレクトリのファイルを全部取り出す
-				this.mFileList = new File(dir).listFiles( new FileFilter(){
+				mFileList = new File(dir).listFiles( new FileFilter(){
 					public boolean accept( File pathname ){
 						// ディレクトリだけ許可
 						return !pathname.getName().startsWith( "." ) && (
@@ -134,19 +122,12 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 			}
 
 			// 今の階層を取っておく
-			this.mCurrDirectory = dir;
-
-			// 何もとれなかった(開けない階層、多分アクセス権限がない)
-			if (this.mFileList == null) {
-				// 一つ上の階層へ移動する
-				this.openDirectory(this.mDirectorys.pop());
-				return ;
-			}
+			mCurrDirectory = dir;
 
 			// 何も残ってない(ディレクトリが確定)
 			/*
-			if (this.mFileList.length <= 0) {
-				this.mListener.onFileSelected(this.mLastSelectedItem);
+			if (mFileList.length <= 0) {
+				mListener.onFileSelected(mLastSelectedItem);
 				return ;
 			}
 			*/
@@ -156,26 +137,23 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 			int itemCount = 0;
 
 			// ルートディレクトリ以外
-			if (0 < this.mDirectorys.size()) {
+			if ( mFileList == null || !dir.equals( "/" )) {
 				// 上の階層へ行くための項目を追加する
-				fileNameList = new String[this.mFileList.length + 1];
-				fileNameList[itemCount] = "../";
-				itemCount++;
-
+				fileNameList = new String[ mFileList != null ? mFileList.length + 1 : 1 ];
+				fileNameList[ 0 ] = "../";
+				itemCount = 1;
 			// ルートディレクトリ
 			} else {
 				// ファイルの数だけ
-				fileNameList = new String[this.mFileList.length];
+				fileNameList = new String[mFileList.length];
 			}
 
 			// 見つかったファイルの分だけ追加する
-			for (File currFile : this.mFileList) {
-
+			if( mFileList != null ) for (File currFile : mFileList) {
 				// ディレクトリだった
 				if (currFile.isDirectory()) {
 					// 最後に/を加えてディレクトリの表示を
 					fileNameList[itemCount] = currFile.getName() + "/";
-
 				// ファイルだった
 				} else {
 					fileNameList[itemCount] = currFile.getName();
@@ -184,7 +162,7 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 			}
 
 			// ダイアログを表示する
-			new AlertDialog.Builder(this.mParent)
+			new AlertDialog.Builder(mParent)
 				.setTitle(dir)
 				.setItems(fileNameList, this)
 				.show();

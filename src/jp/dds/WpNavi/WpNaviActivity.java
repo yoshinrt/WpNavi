@@ -25,6 +25,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -372,7 +373,12 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		switch( item.getItemId()){
 			case R.id.itemLoadKML:
 				FileOpenDialog fod = new FileOpenDialog( this, this, false );
-				fod.openDirectory( Environment.getExternalStorageDirectory().getPath());
+				fod.openDirectory( strKmlFile != null ? strKmlFile : Environment.getExternalStorageDirectory().getPath());
+				return true;
+
+			case R.id.itemOpenGME:
+				startActivity( new Intent(Intent.ACTION_VIEW,
+					Uri.parse( "https://mapsengine.google.com/map/?authuser=0&action=open" )));
 				return true;
 
 			case R.id.itemSetting:
@@ -384,7 +390,6 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 	}
 
 	public void onFileSelected( File file ){
-
 		if( LoadKML( file.getAbsolutePath())){
 			strKmlFile = file.getAbsolutePath();
 		}

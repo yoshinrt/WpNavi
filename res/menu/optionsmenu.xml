@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
     <item android:id="@+id/itemLoadKML" android:icon="@android:drawable/ic_menu_directions" android:title="@string/text_OpenKML"></item>
-    <item android:id="@+id/itemSetting" android:icon="@android:drawable/ic_menu_manage" android:title="@string/text_Setting"></item>
+    <item android:id="@+id/itemOpenGME" android:icon="@android:drawable/ic_menu_myplaces" android:title="@string/text_OpenGME"></item>
+    <item android:id="@+id/itemSetting" android:icon="@android:drawable/ic_menu_preferences" android:title="@string/text_Setting"></item>
 </menu>
