@@ -96,10 +96,10 @@ public class WpNaviService extends Service implements LocationListener{
 
 	int GetStatus(){
 		// サービス状態を返す
-		// ナビリスタートから 5秒以内は RESTART を返す
+		// ナビリスタートから 2秒以内は RESTART を返す
 		return
 			!bRunning ? STATUS_IDLE :
-			( System.currentTimeMillis() - iRestartTime ) < ( 5000 + iWaitTime ) ?
+			( System.currentTimeMillis() - iRestartTime ) < ( 2000 + iWaitTime ) ?
 			STATUS_RESTART : STATUS_NORMAL;
 	}
 
