@@ -39,7 +39,7 @@
 				<data
 					android:scheme="https"
 					android:host="mapsengine.google.com"
-					android:pathPrefix="/map/" />
+					android:pathPrefix="/map/edit"/>
 			</intent-filter>
             </activity>
         <activity android:name=".WpNaviPreference"/>

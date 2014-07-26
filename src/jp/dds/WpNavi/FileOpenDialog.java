@@ -4,8 +4,6 @@ package jp.dds.WpNavi;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.util.Stack;
-
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;

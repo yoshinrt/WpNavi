@@ -380,7 +380,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 
 			case R.id.itemOpenGME:
 				startActivity( new Intent(Intent.ACTION_VIEW,
-					Uri.parse( "http://mapsengine.google.com/map/?authuser=0&action=open" )));
+					Uri.parse( "https://mapsengine.google.com/map/?authuser=0&action=open" )));
 				return true;
 
 			case R.id.itemSetting:
@@ -412,7 +412,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		/** リンク先のURLを取得する。 */
 		String data = intent.getDataString();
 		if( data != null ){
-			Toast.makeText( this, data, Toast.LENGTH_LONG ).show();
+			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:" + data );
 		}
 		return true;
 	}
