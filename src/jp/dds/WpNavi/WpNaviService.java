@@ -18,7 +18,7 @@ import android.util.Log;
 
 public class WpNaviService extends Service implements LocationListener{
 	static final boolean bDebug = WpNaviActivity.bDebug;
-	static final boolean bRestartTest = true;
+	static final boolean bRestartTest = false;
 
 	static final int STATUS_IDLE	= 0;
 	static final int STATUS_NORMAL	= 1;
@@ -30,6 +30,7 @@ public class WpNaviService extends Service implements LocationListener{
 	long	iRestartTime	= 0;
 	int		iNextDistance	= 50;
 	int		iWaitTime		= 0;
+	boolean	bKillByRoot		= false;
 	boolean	bRunning		= false;
 
 	LocationManager		mLocationManager	= null;
@@ -226,7 +227,7 @@ public class WpNaviService extends Service implements LocationListener{
 		intent.setClassName( "jp.dds.WpNavi", "jp.dds.WpNavi.WpNaviActivity" );
 
 		//intentの設定
-		PendingIntent contentIntent = PendingIntent.getActivity( this, 0, intent, 0 );
+		PendingIntent contentIntent = PendingIntent.getActivity( this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
 
 		notification.setLatestEventInfo(
 			getApplicationContext(),
@@ -246,7 +247,7 @@ public class WpNaviService extends Service implements LocationListener{
 
 	final void KillGMaps(){
 		Process process;
-
+		if( !bKillByRoot ) return;
 		try{
 			process = Runtime.getRuntime().exec( "su" );
 			DataOutputStream dos = new DataOutputStream( process.getOutputStream());

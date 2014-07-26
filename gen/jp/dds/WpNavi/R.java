@@ -535,6 +535,7 @@ containing a value of this type.
         /**  Long form sign-in button text [CHAR LIMIT=30] 
          */
         public static final int common_signin_button_text_long=0x7f06001e;
+        public static final int pref_kill_by_root=0x7f06002d;
         public static final int pref_next_distance=0x7f06002b;
         public static final int pref_wait_time=0x7f06002c;
         public static final int text_Activated=0x7f060029;

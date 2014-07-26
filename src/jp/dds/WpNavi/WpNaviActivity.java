@@ -20,16 +20,12 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
-import android.app.DownloadManager;
-import android.app.DownloadManager.Query;
-import android.app.DownloadManager.Request;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -67,8 +63,6 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 
 		// プリファレンス
 		Pref = PreferenceManager.getDefaultSharedPreferences( this );
-
-		GMEIntent( getIntent());
 	}
 
 	@Override
@@ -351,7 +345,8 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		PolyLineOpt.color( 0xFF1166FF );
 		PolyLineOpt.width( 6 );
 		mMap.addPolyline( PolyLineOpt );
-
+		
+		SetMoveCurWayPoint( 0 );
 		return true;
 	}
 
@@ -403,52 +398,6 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		}
 	}
 
-	/*** GME URL intent ****************************************************/
-
-	@Override
-	protected void onNewIntent( Intent intent ){
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::onNewIntent" );
-		super.onNewIntent( intent );
-		GMEIntent( intent );
-	}
-
-	final boolean GMEIntent( Intent intent ){
-		if( intent == null ) return false;
-
-		/** リンク先のURLを取得する。 */
-		String strUrl = intent.getDataString();
-		if( strUrl != null ){
-			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
-
-			Uri.Builder uriBuilder = Uri.parse( strGMEUrl + "/kml" ).buildUpon();
-			uriBuilder.appendQueryParameter( "authuser", "0" );
-			uriBuilder.appendQueryParameter( "mid", "z6u5HhLbDlZI.kzfPtJDWuEdw" );
-
-			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:kmlUrl:" + uriBuilder );
-			
-			Request request = new Request( uriBuilder.build());
-			request.setDestinationInExternalFilesDir( getApplicationContext(), Environment.DIRECTORY_DOWNLOADS, "/wpnavi.kml" );
-			request.setTitle( "TechBooster" );
-			request.setAllowedNetworkTypes( DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI );
-			request.setMimeType( "application/vnd.google-earth.kml+xml" );
-			
-			long lId = (( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).enqueue( request );
-			try {
-				Thread.sleep( 1000 );
-			} catch (InterruptedException e) {
-				// TODO 自動生成された catch ブロック
-				e.printStackTrace();
-			}
-			Query query = new Query();
-			query.setFilterById(lId);
-			Cursor cursor = (( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).query(query);
-			int idStatus = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-			cursor.moveToFirst();
-			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:dlResult:" + cursor.getString(idStatus));
-		}
-		return true;
-	}
-
 	/*** Service ************************************************************/
 
 	//取得したServiceの保存
@@ -492,6 +441,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		mService.iCurWayPoint	= iCurWayPoint;
 		mService.iNextDistance	= GetPrefInt( "key_next_distance", 50 );
 		mService.iWaitTime		= GetPrefInt( "key_wait_time", 3000 );
+		mService.bKillByRoot	= Pref.getBoolean( "key_kill_by_root", false );
 
 		startService( intent );
 	}
