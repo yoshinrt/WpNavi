@@ -61,6 +61,8 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 
 		// プリファレンス
 		Pref = PreferenceManager.getDefaultSharedPreferences( this );
+		
+		GMEIntent( getIntent());
 	}
 
 	@Override
@@ -378,7 +380,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 
 			case R.id.itemOpenGME:
 				startActivity( new Intent(Intent.ACTION_VIEW,
-					Uri.parse( "https://mapsengine.google.com/map/?authuser=0&action=open" )));
+					Uri.parse( "http://mapsengine.google.com/map/?authuser=0&action=open" )));
 				return true;
 
 			case R.id.itemSetting:
@@ -395,6 +397,26 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		}
 	}
 
+	/*** GME URL intent ****************************************************/
+	
+	@Override
+	protected void onNewIntent( Intent intent ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onNewIntent" );
+		super.onNewIntent( intent );
+		GMEIntent( intent );
+	}
+	
+	final boolean GMEIntent( Intent intent ){
+		if( intent == null ) return false;
+		
+		/** リンク先のURLを取得する。 */
+		String data = intent.getDataString();
+		if( data != null ){
+			Toast.makeText( this, data, Toast.LENGTH_LONG ).show();
+		}
+		return true;
+	}
+	
 	/*** Service ************************************************************/
 
 	//取得したServiceの保存
