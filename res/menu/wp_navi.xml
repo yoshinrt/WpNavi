@@ -1,9 +1,25 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:context="com.example.wpnavi.WpNaviActivity" >
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	tools:context="com.example.wpnavi.WpNaviActivity"
+>
 
-    <item android:id="@+id/itemLoadKML" android:icon="@android:drawable/ic_menu_directions" android:title="@string/text_OpenKML" app:showAsAction="ifRoom"></item>
-    <item android:id="@+id/itemOpenGME" android:icon="@android:drawable/ic_menu_myplaces" android:title="@string/text_OpenGME"></item>
-    <item android:id="@+id/itemSetting" android:icon="@android:drawable/ic_menu_preferences" android:title="@string/text_Setting" app:showAsAction="always"></item>
+	<item
+		android:id="@+id/itemLoadKML"
+		android:icon="@android:drawable/ic_menu_save"
+		android:title="@string/text_OpenKML"
+		android:orderInCategory="10"
+		app:showAsAction="ifRoom|withText" />
+	<item
+		android:id="@+id/itemOpenGME"
+		android:icon="@android:drawable/ic_menu_myplaces"
+		android:title="@string/text_OpenGME"
+		android:orderInCategory="30"
+		app:showAsAction="ifRoom" />
+	<item
+		android:id="@+id/itemSetting"
+		android:icon="@android:drawable/ic_menu_preferences"
+		android:title="@string/text_Setting"
+		android:orderInCategory="20"
+		app:showAsAction="ifRoom" />
 </menu>

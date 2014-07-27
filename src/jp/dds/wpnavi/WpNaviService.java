@@ -7,6 +7,8 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -14,6 +16,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 public class WpNaviService extends Service implements LocationListener{
@@ -31,7 +34,7 @@ public class WpNaviService extends Service implements LocationListener{
 	int		iWaitTime		= 0;
 	boolean	bKillByRoot		= false;
 
-	private long	iRestartTime	= 0;
+	private long		iRestartTime	= 0;
 	private boolean	bRunning		= false;
 
 	private LocationManager		mLocationManager	= null;
@@ -214,25 +217,28 @@ public class WpNaviService extends Service implements LocationListener{
 			notificationManager = ( NotificationManager )getSystemService( NOTIFICATION_SERVICE );
 		}
 
-		Notification notification = new Notification(
-			android.R.drawable.ic_menu_directions,
-			strNotifyMsg,
-			System.currentTimeMillis()
-		);
-		notification.flags = Notification.FLAG_ONGOING_EVENT;
-
 		Intent intent = new Intent( Intent.ACTION_VIEW );
 		intent.setClassName( "jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity" );
 
 		//intentの設定
 		PendingIntent contentIntent = PendingIntent.getActivity( this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
-
-		notification.setLatestEventInfo(
-			getApplicationContext(),
-			getResources().getText( R.string.app_name ),
-			strNotifyMsg,
-			contentIntent
-		);
+		
+		// LargeIcon の Bitmap を生成
+		Bitmap largeIcon = BitmapFactory.decodeResource( getResources(), R.drawable.ic_launcher );
+		
+		// NotificationBuilderを作成
+		Notification notification = new NotificationCompat.Builder( getApplicationContext())
+			.setContentIntent( contentIntent )
+			.setTicker( strNotifyMsg )
+			.setSmallIcon( android.R.drawable.ic_menu_directions )
+			.setContentTitle( strNotifyMsg )
+			.setContentText( getResources().getText( R.string.app_name ))
+			.setLargeIcon( largeIcon )
+			.setWhen( System.currentTimeMillis())
+			.setAutoCancel( false )
+			.setOngoing( true )
+			.build();
+		
 		notificationManager.notify( R.string.app_name, notification );
 	}
 

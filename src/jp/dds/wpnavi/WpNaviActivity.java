@@ -31,7 +31,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.support.v4.app.FragmentActivity;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.util.Xml;
 import android.view.Menu;
@@ -40,7 +40,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
-public class WpNaviActivity extends FragmentActivity implements FileOpenDialogListener {
+public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogListener {
 
 	static final boolean bDebug = true;
 	private static final String strGMEUrl = "https://mapsengine.google.com/map";
