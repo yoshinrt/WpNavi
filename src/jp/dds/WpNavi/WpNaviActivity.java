@@ -43,14 +43,14 @@ import android.widget.Toast;
 public class WpNaviActivity extends FragmentActivity implements FileOpenDialogListener {
 
 	static final boolean bDebug = true;
-	static final String strGMEUrl = "https://mapsengine.google.com/map";
+	private static final String strGMEUrl = "https://mapsengine.google.com/map";
 
-	int	iCurWayPoint		= 0;
-	Coordinate	WayPoint	= new Coordinate();
-	SharedPreferences Pref	= null;
-	String	strKmlFile		= null;
+	private int	iCurWayPoint		= 0;
+	private Coordinate	WayPoint	= new Coordinate();
+	private SharedPreferences Pref	= null;
+	private String	strKmlFile		= null;
 
-	ArrayList<Marker>	Markers = new ArrayList<Marker>();
+	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
 
 	/*** Activity management ************************************************/
 
@@ -207,10 +207,10 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 
 	/*** Load KML ***********************************************************/
 
-	static final int	KML_NONE		= 0;
-	static final int	KML_POINT		= 1 << 0;
-	static final int	KML_LINESTRING	= 1 << 1;
-	static final int	KML_COORDINATES	= 1 << 2;
+	private static final int	KML_NONE		= 0;
+	private static final int	KML_POINT		= 1 << 0;
+	private static final int	KML_LINESTRING	= 1 << 1;
+	private static final int	KML_COORDINATES	= 1 << 2;
 
 	public boolean LoadKML( String strKmlFile ){
 		int	iState;
@@ -345,7 +345,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		PolyLineOpt.color( 0xFF1166FF );
 		PolyLineOpt.width( 6 );
 		mMap.addPolyline( PolyLineOpt );
-		
+
 		SetMoveCurWayPoint( 0 );
 		return true;
 	}
@@ -440,7 +440,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 		intent.putIntegerArrayListExtra( "WayPoint", WayPoint.Points );
 		mService.iCurWayPoint	= iCurWayPoint;
 		mService.iNextDistance	= GetPrefInt( "key_next_distance", 50 );
-		mService.iWaitTime		= GetPrefInt( "key_wait_time", 3000 );
+		mService.iWaitTime		= GetPrefInt( "key_wait_time", 6000 );
 		mService.bKillByRoot	= Pref.getBoolean( "key_kill_by_root", false );
 
 		startService( intent );

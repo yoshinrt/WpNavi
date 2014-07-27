@@ -6,7 +6,7 @@ import com.google.android.gms.maps.model.LatLng;
 
 public class Coordinate {
 	ArrayList<Integer>	Points;
-	static final double ToInt = 1E7;
+	private static final double ToInt = 1E7;
 
 	Coordinate(){
 		Points	= new ArrayList<Integer>();
@@ -41,10 +41,10 @@ public class Coordinate {
 		Points.clear();
 	}
 
-	static final double _a	= 6378137.000;
-	static final double _b	= 6356752.314245;
-	static final double _e2	= ( _a * _a - _b * _b ) / ( _a * _a );
-	static final double ToRAD = Math.PI / 180;
+	private static final double _a	= 6378137.000;
+	private static final double _b	= 6356752.314245;
+	private static final double _e2	= ( _a * _a - _b * _b ) / ( _a * _a );
+	private static final double ToRAD = Math.PI / 180;
 
 	static final double Distance(
 		double dLong0, double dLati0,

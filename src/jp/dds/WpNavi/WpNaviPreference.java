@@ -11,12 +11,10 @@ import android.util.Log;
 public class WpNaviPreference extends PreferenceActivity
 	implements OnSharedPreferenceChangeListener {
 
-	static final boolean bDebug = WpNaviActivity.bDebug;
+	private static final boolean bDebug = WpNaviActivity.bDebug;
 
 	private EditTextPreference	EditNextDistance;
 	private EditTextPreference	EditWaitTime;
-
-	SharedPreferences Pref;
 
 	// create
 	@Override
@@ -51,7 +49,9 @@ public class WpNaviPreference extends PreferenceActivity
 		}
 
 		if( key == null || key.equals( "key_wait_time" )){
-			EditWaitTime.setSummary( Pref.getString( "key_wait_time", null ) + "ms" );
+			EditWaitTime.setSummary( Pref.getString( "key_wait_time", null ) +
+				getResources().getText( R.string.text_millisecond )
+			);
 		}
 	}
 

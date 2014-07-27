@@ -17,24 +17,25 @@ import android.os.IBinder;
 import android.util.Log;
 
 public class WpNaviService extends Service implements LocationListener{
-	static final boolean bDebug = WpNaviActivity.bDebug;
-	static final boolean bRestartTest = false;
+	private static final boolean bDebug = WpNaviActivity.bDebug;
+	private static final boolean bRestartTest = false;
 
 	static final int STATUS_IDLE	= 0;
 	static final int STATUS_NORMAL	= 1;
 	static final int STATUS_RESTART	= 2;
 
-	Coordinate	WayPoint;
+	private Coordinate	WayPoint;
 
 	int		iCurWayPoint	= 0;
-	long	iRestartTime	= 0;
 	int		iNextDistance	= 50;
 	int		iWaitTime		= 0;
 	boolean	bKillByRoot		= false;
-	boolean	bRunning		= false;
 
-	LocationManager		mLocationManager	= null;
-	NotificationManager	notificationManager	= null;
+	private long	iRestartTime	= 0;
+	private boolean	bRunning		= false;
+
+	private LocationManager		mLocationManager	= null;
+	private NotificationManager	notificationManager	= null;
 
 	/*** サービスハンドラ ***************************************************/
 
@@ -113,7 +114,6 @@ public class WpNaviService extends Service implements LocationListener{
 		);
 
 		bRunning = true;
-
 		SetNotification();
 		iRestartTime = System.currentTimeMillis();
 
@@ -174,7 +174,7 @@ public class WpNaviService extends Service implements LocationListener{
 		}
 	}
 
-	static int iCnt = 0;
+	private static int iCnt = 0;
 
 	@Override
 	public void onLocationChanged( Location location ){
@@ -182,10 +182,8 @@ public class WpNaviService extends Service implements LocationListener{
 
 		if( !bRestartTest ){
 			// 経由地に近づいたらナビ起動
-			if(
-				WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude()) <= iNextDistance &&
-				++iCurWayPoint < WayPoint.Size()
-			){
+			double dDistance = WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude());
+			if( dDistance <= iNextDistance && ++iCurWayPoint < WayPoint.Size()){
 				StartNavi();
 			}
 			if( iCurWayPoint == WayPoint.Size() - 1 ) StopNavi();

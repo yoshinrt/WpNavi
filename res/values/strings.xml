@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">WP Navi</string>
+    <string name="app_name">Waypoint Navi</string>
     <string name="button_prevwp">&lt;&lt;前</string>
     <string name="button_start_navi">ナビ開始</string>
     <string name="button_nextwp">次&gt;&gt;</string>
@@ -10,8 +10,10 @@
     <string name="text_OpenGME">マイマップ</string><string name="text_Setting">設定...</string>
     <string name="text_Activated">WP%d へナビ中</string>
     <string name="text_KMLNotLoaded">KML がロードされていません</string>
-    <string name="pref_next_distance">経由地の範囲 (半径)</string>
+    <string name="text_millisecond">ミリ秒</string><string name="pref_next_distance">経由地の範囲 (半径)</string>
     <string name="pref_wait_time">ナビ再起動時の待ち時間</string>
-    <string name="pref_kill_by_root">ナビ起動時のボタンキャンセル (要root)</string>
+    <string name="pref_kill_by_root">確実なナビ再起動</string>
+    <string name="pref_kill_by_root_exp">root権限が必要</string>
+    
     
 </resources>

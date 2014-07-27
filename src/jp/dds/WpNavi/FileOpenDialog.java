@@ -32,7 +32,6 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 	private String mCurrDirectory		= null;	// 今居るディレクトリ
 	private FileOpenDialogListener mListener;	// リスナー
 
-	private boolean mOpenDirectory;				// ディレクトリを開く
 	private File mLastSelectedItem;				// 最後に選択されたモノ
 
 	/**
@@ -45,7 +44,6 @@ class FileOpenDialog implements DialogInterface.OnClickListener {
 		super();
 		mParent			= parent;			// コンテキスト
 		mListener		= listener;			// リスナー
-		mOpenDirectory	= openDirectory;	// ディレクトリだけを開くか
 	}
 
 	/**
