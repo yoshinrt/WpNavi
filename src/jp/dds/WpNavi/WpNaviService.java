@@ -1,4 +1,4 @@
-package jp.dds.WpNavi;
+package jp.dds.wpnavi;
 
 import java.io.DataOutputStream;
 import android.app.Notification;
@@ -222,7 +222,7 @@ public class WpNaviService extends Service implements LocationListener{
 		notification.flags = Notification.FLAG_ONGOING_EVENT;
 
 		Intent intent = new Intent( Intent.ACTION_VIEW );
-		intent.setClassName( "jp.dds.WpNavi", "jp.dds.WpNavi.WpNaviActivity" );
+		intent.setClassName( "jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity" );
 
 		//intentの設定
 		PendingIntent contentIntent = PendingIntent.getActivity( this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );

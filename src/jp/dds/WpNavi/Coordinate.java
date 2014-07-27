@@ -1,4 +1,4 @@
-package jp.dds.WpNavi;
+package jp.dds.wpnavi;
 
 import java.util.ArrayList;
 

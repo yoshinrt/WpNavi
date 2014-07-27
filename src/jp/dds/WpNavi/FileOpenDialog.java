@@ -1,6 +1,6 @@
 // 参考: http://junkcode.aakaka.com/archives/675
 
-package jp.dds.WpNavi;
+package jp.dds.wpnavi;
 
 import java.io.File;
 import java.io.FileFilter;

@@ -1,45 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/LinearLayout1"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:orientation="vertical" >
+	android:id="@+id/LinearLayout1"
+	android:layout_width="fill_parent"
+	android:layout_height="fill_parent"
+	android:orientation="vertical" >
 
 	<fragment
-	    android:id="@+id/map"
-	    android:layout_width="match_parent"
-	    android:layout_height="0dp"
-	    android:layout_weight="1"
+		android:id="@+id/map"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
 		class="com.google.android.gms.maps.SupportMapFragment"
 	/>
 
-    <LinearLayout
-        android:id="@+id/linearLayout2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" >
+	<LinearLayout
+		android:id="@+id/linearLayout2"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content" >
 
-        <Button
-            android:id="@+id/buttonPrevWp"
-            android:layout_width="1000dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:onClick="onClickPrevWp"
-            android:text="@string/button_prevwp" />
+		<Button
+			android:id="@+id/buttonPrevWp"
+			android:layout_width="1000dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:onClick="onClickPrevWp"
+			android:text="@string/button_prevwp" />
 
-        <Button
-            android:id="@+id/buttonStartNavi"
-            android:layout_width="1000dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:onClick="onClickStartNavi"
-            android:text="@string/button_start_navi" />
+		<Button
+			android:id="@+id/buttonStartNavi"
+			android:layout_width="1000dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:onClick="onClickStartNavi"
+			android:text="@string/button_start_navi" />
 
-        <Button
-            android:id="@+id/buttonNextWp"
-            android:layout_width="1000dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:onClick="onClickNextWp"
-            android:text="@string/button_nextwp" />
-        </LinearLayout>
+		<Button
+			android:id="@+id/buttonNextWp"
+			android:layout_width="1000dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:onClick="onClickNextWp"
+			android:text="@string/button_nextwp" />
+		</LinearLayout>
 </LinearLayout>

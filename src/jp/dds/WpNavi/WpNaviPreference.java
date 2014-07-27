@@ -1,4 +1,4 @@
-package jp.dds.WpNavi;
+package jp.dds.wpnavi;
 
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;

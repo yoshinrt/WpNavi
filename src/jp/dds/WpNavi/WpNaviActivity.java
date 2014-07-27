@@ -1,4 +1,4 @@
-package jp.dds.WpNavi;
+package jp.dds.wpnavi;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -367,7 +367,7 @@ public class WpNaviActivity extends FragmentActivity implements FileOpenDialogLi
 	public boolean onCreateOptionsMenu( Menu menu ){
 		super.onCreateOptionsMenu( menu );
 		MenuInflater inflater = getMenuInflater();
-		inflater.inflate( R.menu.optionsmenu, menu );
+		inflater.inflate( R.menu.wp_navi, menu );
 		return true;
 	}
 
