@@ -15,7 +15,7 @@
 		android:icon="@android:drawable/ic_menu_myplaces"
 		android:title="@string/text_OpenGME"
 		android:orderInCategory="30"
-		app:showAsAction="ifRoom" />
+		app:showAsAction="never" />
 	<item
 		android:id="@+id/itemSetting"
 		android:icon="@android:drawable/ic_menu_preferences"
