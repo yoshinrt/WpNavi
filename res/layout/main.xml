@@ -14,6 +14,16 @@
 	/>
 
 	<LinearLayout
+	    android:id="@+id/layout_ad"
+	    android:layout_width="match_parent"
+	    android:layout_height="wrap_content"
+	    android:layout_alignParentBottom="true"
+	    android:background="#999"
+	    android:orientation="vertical" >
+
+	</LinearLayout>
+	
+	<LinearLayout
 		android:id="@+id/linearLayout2"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content" >

@@ -1476,9 +1476,9 @@ containing a value of this type.
         public static final int always=0x7f06000b;
         public static final int beginning=0x7f060011;
         public static final int book_now=0x7f060028;
-        public static final int buttonNextWp=0x7f060053;
-        public static final int buttonPrevWp=0x7f060051;
-        public static final int buttonStartNavi=0x7f060052;
+        public static final int buttonNextWp=0x7f060054;
+        public static final int buttonPrevWp=0x7f060052;
+        public static final int buttonStartNavi=0x7f060053;
         public static final int buyButton=0x7f060022;
         public static final int buy_now=0x7f060027;
         public static final int buy_with_google=0x7f060026;
@@ -1502,10 +1502,10 @@ containing a value of this type.
         public static final int icon=0x7f06003c;
         public static final int ifRoom=0x7f06000a;
         public static final int image=0x7f060039;
-        public static final int itemLoadKML=0x7f060054;
-        public static final int itemOpenGME=0x7f060055;
+        public static final int itemLoadKML=0x7f060055;
         public static final int itemSetting=0x7f060056;
-        public static final int linearLayout2=0x7f060050;
+        public static final int layout_ad=0x7f060050;
+        public static final int linearLayout2=0x7f060051;
         public static final int listMode=0x7f060001;
         public static final int list_item=0x7f06003b;
         public static final int map=0x7f06004f;

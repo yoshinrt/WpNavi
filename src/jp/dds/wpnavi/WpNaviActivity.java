@@ -8,6 +8,7 @@ import java.util.ArrayList;
 
 import org.xmlpull.v1.XmlPullParser;
 
+import com.google.android.gms.ads.*;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
@@ -38,19 +39,24 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogListener {
 
-	static final boolean bDebug = true;
+	static final boolean bDebug		= BuildConfig.DEBUG;
+	static final boolean bEnableAds	= true;
 	private static final String strGMEUrl = "https://mapsengine.google.com/map";
 
-	private int	iCurWayPoint		= 0;
+	private int	iCurWayPoint	= 0;
 	private Coordinate	WayPoint	= new Coordinate();
 	private SharedPreferences Pref	= null;
 	private String	strKmlFile		= null;
 
 	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
+	
+	private LinearLayout layout_ad;	//広告表示用スペース
+	private AdView adView;
 
 	/*** Activity management ************************************************/
 
@@ -63,12 +69,26 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 
 		// プリファレンス
 		Pref = PreferenceManager.getDefaultSharedPreferences( this );
+		
+		// 広告
+		if( bEnableAds ){
+			adView = new AdView( this );
+			adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
+			adView.setAdSize( AdSize.SMART_BANNER );
+			
+			layout_ad = ( LinearLayout )findViewById( R.id.layout_ad );
+			layout_ad.addView( adView );
+			
+			AdRequest adRequest = new AdRequest.Builder().build();
+			adView.loadAd( adRequest );
+		}
 	}
 
 	@Override
 	protected void onResume(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onResume" );
 		super.onResume();
+		if( bEnableAds ) adView.resume();	// 広告
 		BindService();
 
 		if( mMap != null ){
@@ -99,6 +119,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 	@Override
 	protected void onPause(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onPause" );
+		if( bEnableAds ) adView.pause();	// 広告
 		super.onPause();
 		UnbindService();
 
@@ -144,6 +165,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 	@Override
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
+		if( bEnableAds ) adView.destroy();	// 広告
 		super.onDestroy();
 	}
 
@@ -379,11 +401,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 				fod.openDirectory( strKmlFile != null ? strKmlFile : Environment.getExternalStorageDirectory().getPath());
 				return true;
 
+			/*
 			case R.id.itemOpenGME:
 				startActivity( new Intent(Intent.ACTION_VIEW,
 					Uri.parse( strGMEUrl + "/?authuser=0&action=open" )));
 				return true;
-
+			*/
+				
 			case R.id.itemSetting:
 				Intent intent = new Intent( WpNaviActivity.this, WpNaviPreference.class );
 				startActivityForResult( intent, 0 );
