@@ -21,6 +21,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
+import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -28,6 +29,7 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -234,8 +236,10 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 	private static final int	KML_LINESTRING	= 1 << 1;
 	private static final int	KML_COORDINATES	= 1 << 2;
 
+	@SuppressLint("NewApi")
 	public boolean LoadKML( String strKmlFile ){
-		int	iState;
+		int		iState;
+		String	strTitle = null;
 
 		if( mMap == null ) return false;
 
@@ -275,6 +279,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 						iState |= KML_POINT;
 					}else if( str.equals( "coordinates" )){
 						iState |= KML_COORDINATES;
+					}else if( strTitle == null && str.equals( "name" )){
+						strTitle = xpp.nextText();
 					}
 
 					//Log.d( "WpNavi", "Tag:" + str );
@@ -350,7 +356,14 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 		mMap.clear();
 		Markers.clear();
 		iCurWayPoint = 0;
-
+		
+		// タイトル設定
+		if( strTitle != null ){
+			setTitle( strTitle );
+		}else{
+			setTitle( R.string.app_name );
+		}
+		
 		// WP を Map に追加
 		for( int i = 0; i < WayPoint.Size(); ++i ){
 			MarkerOptions MakerOpt = new MarkerOptions();
