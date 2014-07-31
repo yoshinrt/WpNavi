@@ -174,9 +174,9 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 	/*** Google Maps ********************************************************/
 
 	private GoogleMap mMap;
-	private UiSettings mUiSettings;
-
 	private void setUpMapIfNeeded(){
+		UiSettings ui;
+	
 		// Do a null check to confirm that we have not already instantiated the map.
 		if( mMap == null ){
 			// Try to obtain the map from the SupportMapFragment.
@@ -184,17 +184,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 			// Check if we were successful in obtaining the map.
 			if( mMap != null ){
 				mMap.setMyLocationEnabled( true );
-				mUiSettings = mMap.getUiSettings();
+				ui = mMap.getUiSettings();
 
 				// Keep the UI Settings state in sync with the checkboxes.
 				mMap.setMyLocationEnabled( true );
-				mUiSettings.setZoomControlsEnabled( true );
-				mUiSettings.setCompassEnabled( true );
-				mUiSettings.setMyLocationButtonEnabled( true );
-				mUiSettings.setScrollGesturesEnabled( true );
-				mUiSettings.setZoomGesturesEnabled( true );
-				mUiSettings.setTiltGesturesEnabled( true );
-				mUiSettings.setRotateGesturesEnabled( true );
+				ui.setMyLocationButtonEnabled( true );
 			}
 		}
 	}
