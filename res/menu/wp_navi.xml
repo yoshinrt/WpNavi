@@ -10,16 +10,16 @@
 		android:title="@string/text_OpenKML"
 		android:orderInCategory="10"
 		app:showAsAction="ifRoom|withText" />
-	<!--item
+	<item
 		android:id="@+id/itemOpenGME"
 		android:icon="@android:drawable/ic_menu_myplaces"
 		android:title="@string/text_OpenGME"
-		android:orderInCategory="30"
-		app:showAsAction="never" /-->
+		android:orderInCategory="20"
+		app:showAsAction="ifRoom|withText" />
 	<item
 		android:id="@+id/itemSetting"
 		android:icon="@android:drawable/ic_menu_preferences"
 		android:title="@string/text_Setting"
-		android:orderInCategory="20"
-		app:showAsAction="ifRoom" />
+		android:orderInCategory="30"
+		app:showAsAction="never" />
 </menu>

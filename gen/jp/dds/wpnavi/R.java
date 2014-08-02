@@ -1503,7 +1503,8 @@ containing a value of this type.
         public static final int ifRoom=0x7f08000a;
         public static final int image=0x7f080039;
         public static final int itemLoadKML=0x7f080055;
-        public static final int itemSetting=0x7f080056;
+        public static final int itemOpenGME=0x7f080056;
+        public static final int itemSetting=0x7f080057;
         public static final int layout_ad=0x7f080050;
         public static final int linearLayout2=0x7f080051;
         public static final int listMode=0x7f080001;
@@ -1745,11 +1746,12 @@ containing a value of this type.
         /**  Long form sign-in button text [CHAR LIMIT=30] 
          */
         public static final int common_signin_button_text_long=0x7f06002d;
-        public static final int pref_kill_by_root=0x7f06003d;
-        public static final int pref_kill_by_root_exp=0x7f06003e;
-        public static final int pref_next_distance=0x7f06003b;
-        public static final int pref_wait_time=0x7f06003c;
+        public static final int pref_kill_by_root=0x7f06003e;
+        public static final int pref_kill_by_root_exp=0x7f06003f;
+        public static final int pref_next_distance=0x7f06003c;
+        public static final int pref_wait_time=0x7f06003d;
         public static final int text_Activated=0x7f060038;
+        public static final int text_DownloadFailed=0x7f06003b;
         public static final int text_FileNotFound=0x7f060034;
         public static final int text_InvalidKMLFormat=0x7f060033;
         public static final int text_KMLNotLoaded=0x7f060039;

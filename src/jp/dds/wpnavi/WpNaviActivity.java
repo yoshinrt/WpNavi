@@ -23,12 +23,19 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
 import android.annotation.SuppressLint;
+import android.app.DownloadManager;
+import android.app.DownloadManager.Query;
+import android.app.DownloadManager.Request;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -48,12 +55,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 	static final boolean bDebug		= BuildConfig.DEBUG;
 	static boolean bEnableAds	= true;
-	private static final String strGMEUrl = "https://mapsengine.google.com/map";
+	private static final String m_strGMEUrl = "https://mapsengine.google.com/map";
+	private static final String m_strDownloadKmlName = "/wpnavi.kml";
 
 	private int	iCurWayPoint	= 0;
 	private Coordinate	WayPoint	= new Coordinate();
 	private SharedPreferences Pref	= null;
-	private String	strKmlFile		= null;
+	private String	m_strKmlFile	= null;
 
 	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
 	
@@ -71,6 +79,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 		// プリファレンス
 		Pref = PreferenceManager.getDefaultSharedPreferences( this );
+		GMEIntent( getIntent());
 		
 		// 広告
 		bEnableAds = Pref.getInt( "key_flag", 0 ) != 44298893;
@@ -85,6 +94,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			AdRequest adRequest = new AdRequest.Builder().build();
 			adView.loadAd( adRequest );
 		}
+		
+		RegisterBroadcastReceiver();
 	}
 
 	@Override
@@ -114,8 +125,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			});
 
 			// KML ロード
-			strKmlFile = Pref.getString( "key_kml_file", null );
-			if( strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( strKmlFile );
+			m_strKmlFile = Pref.getString( "key_kml_file", null );
+			if( m_strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( m_strKmlFile );
 		}
 	}
 
@@ -133,7 +144,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 		ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
 		ed.putFloat( "key_gmap_zoom", cam.zoom );
-		ed.putString( "key_kml_file", strKmlFile );
+		ed.putString( "key_kml_file", m_strKmlFile );
 		
 		int i;
 		if(( i = GetPrefInt( "key_next_distance", 0 )) == 44298893 ){
@@ -174,6 +185,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
 		if( bEnableAds ) adView.destroy();	// 広告
+		UnregisterBroadcastReceiver();
+		
 		super.onDestroy();
 	}
 
@@ -236,7 +249,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	private static final int	KML_LINESTRING	= 1 << 1;
 	private static final int	KML_COORDINATES	= 1 << 2;
 
-	@SuppressLint( "NewApi" )
 	public boolean LoadKML( String strKmlFile ){
 		int		iState;
 		String	strTitle = null;
@@ -356,6 +368,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		mMap.clear();
 		Markers.clear();
 		iCurWayPoint = 0;
+		m_strKmlFile = strKmlFile;
 		
 		// タイトル設定
 		if( strTitle != null ){
@@ -421,15 +434,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 						}
 					}
 				);
-				fod.openDirectory( strKmlFile );
+				fod.openDirectory( m_strKmlFile );
 				return true;
 
-			/*
 			case R.id.itemOpenGME:
 				startActivity( new Intent( Intent.ACTION_VIEW,
-					Uri.parse( strGMEUrl + "/?authuser=0&action=open" )));
+					Uri.parse( m_strGMEUrl + "/?authuser=0&action=open" )));
 				return true;
-			*/
 				
 			case R.id.itemSetting:
 				Intent intent = new Intent( WpNaviActivity.this, WpNaviPreference.class );
@@ -440,11 +451,95 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 
 	public void onFileSelected( File file ){
-		if( LoadKML( file.getAbsolutePath())){
-			strKmlFile = file.getAbsolutePath();
-		}
+		LoadKML( file.getAbsolutePath());
 	}
 
+	/*** GME URL intent ****************************************************/
+
+	@Override
+	protected void onNewIntent( Intent intent ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onNewIntent" );
+		super.onNewIntent( intent );
+		GMEIntent( intent );
+	}
+
+	final boolean GMEIntent( Intent intent ){
+		if( intent == null ) return false;
+
+		/** リンク先のURLを取得する。 */
+		String strUrl = intent.getDataString();
+		if( strUrl != null ){			
+			try{
+				( new File( WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName )).delete();
+			}catch( Exception e ){}
+			
+			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
+
+			// mid を取得
+			String strMid = strUrl.replaceFirst( ".*mid=", "" ).replaceFirst( "&.*", "" );
+			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strMid );
+			
+			Uri.Builder uriBuilder = Uri.parse( m_strGMEUrl + "/kml" ).buildUpon();
+			uriBuilder.appendQueryParameter( "authuser", "0" );
+			uriBuilder.appendQueryParameter( "mid", strMid );
+
+			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:kmlUrl:" + uriBuilder );
+			
+			Request request = new Request( uriBuilder.build());
+			request.setDestinationInExternalFilesDir( WpNaviActivity.this, Environment.DIRECTORY_DOWNLOADS, m_strDownloadKmlName );
+			request.setVisibleInDownloadsUi( false );
+			request.setAllowedNetworkTypes( DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI );
+			//request.setMimeType( "application/vnd.google-earth.kml+xml" );
+			
+			(( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).enqueue( request );
+		}
+		return true;
+	}
+	
+	BroadcastReceiver mReceiver = new BroadcastReceiver(){
+		@Override
+		public void onReceive( Context context, Intent intent ){
+			String action = intent.getAction();
+			if( DownloadManager.ACTION_DOWNLOAD_COMPLETE.equals( action )){
+
+				long id = intent.getLongExtra( DownloadManager.EXTRA_DOWNLOAD_ID, -1 );
+
+				Query query = new Query();
+				query.setFilterById( id );
+				Cursor cursor = (( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).query( query );
+
+				if( cursor.moveToFirst()){
+					int status = cursor.getInt( cursor.getColumnIndex( DownloadManager.COLUMN_STATUS ));
+					int reason = cursor.getInt( cursor.getColumnIndex( DownloadManager.COLUMN_REASON ));
+					if( bDebug ){
+						Log.d( "WpNavi", "BBRcv:status=" + Integer.toString( status ));
+						Log.d( "WpNavi", "BBRcf:reason=" + Integer.toString( reason ));
+					}
+					
+					if( status == DownloadManager.STATUS_SUCCESSFUL ){
+						// ダウンロードに成功した場合
+						LoadKML(
+							WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName
+						);
+					}else{
+						// ダウンロードに失敗した場合
+						Toast.makeText( WpNaviActivity.this, R.string.text_DownloadFailed, Toast.LENGTH_LONG ).show();
+					}
+				}
+				cursor.close();
+
+			}
+		}
+	};
+		
+	final void RegisterBroadcastReceiver(){
+		registerReceiver( mReceiver, new IntentFilter( DownloadManager.ACTION_DOWNLOAD_COMPLETE ));
+	}
+	
+	final void UnregisterBroadcastReceiver(){
+		unregisterReceiver( mReceiver );
+	}
+	
 	/*** Service ************************************************************/
 
 	//取得したServiceの保存
