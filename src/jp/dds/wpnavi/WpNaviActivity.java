@@ -42,8 +42,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+import jp.dds.dds_lib.FileOpenDialog;
 
-public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogListener{
+public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.FileOpenDialogListener{
 
 	static final boolean bDebug		= BuildConfig.DEBUG;
 	static final boolean bEnableAds	= true;
