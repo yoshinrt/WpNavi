@@ -407,7 +407,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				FileOpenDialog fod = new FileOpenDialog( this, this, FileOpenDialog.MODE_FILE,
 					new FileFilter(){
 						public boolean accept( File pathname ){
-							// ディレクトリだけ許可
 							return !pathname.getName().startsWith( "." ) && (
 								pathname.isDirectory() ||
 								pathname.getName().endsWith( ".kml" ) ||
@@ -416,7 +415,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 						}
 					}
 				);
-				fod.openDirectory( strKmlFile != null ? strKmlFile : Environment.getExternalStorageDirectory().getPath());
+				fod.openDirectory( strKmlFile );
 				return true;
 
 			/*
