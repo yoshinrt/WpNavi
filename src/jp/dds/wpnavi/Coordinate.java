@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import com.google.android.gms.maps.model.LatLng;
 
-public class Coordinate {
+public class Coordinate{
 	ArrayList<Integer>	Points;
 	private static final double ToInt = 1E7;
 

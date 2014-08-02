@@ -81,7 +81,7 @@ public class WpNaviService extends Service implements LocationListener{
 
 	/*
 	@Override
-	public void onRebind(Intent intent) {
+	public void onRebind( Intent intent ){
 		if( bDebug ) Log.d( "WpNavi", "Service::onRebind" );
 	}
 
@@ -92,7 +92,7 @@ public class WpNaviService extends Service implements LocationListener{
 	}
 	*/
 
-    public class WpNaviServiceLocalBinder extends Binder {
+    public class WpNaviServiceLocalBinder extends Binder{
         //サービスの取得
         WpNaviService getService(){
             return WpNaviService.this;
@@ -199,13 +199,13 @@ public class WpNaviService extends Service implements LocationListener{
 	}
 
 	@Override
-	public void onProviderDisabled(String provider) {}
+	public void onProviderDisabled( String provider ){}
 
 	@Override
-	public void onProviderEnabled(String provider) {}
+	public void onProviderEnabled( String provider ){}
 
 	@Override
-	public void onStatusChanged(String provider, int status, Bundle extras) {}
+	public void onStatusChanged( String provider, int status, Bundle extras ){}
 
 	/*** Notification *******************************************************/
 
@@ -227,7 +227,7 @@ public class WpNaviService extends Service implements LocationListener{
 		Bitmap largeIcon = BitmapFactory.decodeResource( getResources(), R.drawable.ic_launcher );
 		
 		// NotificationBuilderを作成
-		Notification notification = new NotificationCompat.Builder( getApplicationContext())
+		Notification notification = new NotificationCompat.Builder( WpNaviService.this )
 			.setContentIntent( contentIntent )
 			.setTicker( strNotifyMsg )
 			.setSmallIcon( android.R.drawable.ic_menu_directions )

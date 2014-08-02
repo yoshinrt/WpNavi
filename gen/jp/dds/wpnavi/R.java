@@ -1745,16 +1745,18 @@ containing a value of this type.
         /**  Long form sign-in button text [CHAR LIMIT=30] 
          */
         public static final int common_signin_button_text_long=0x7f0b002b;
-        public static final int pref_kill_by_root=0x7f0b003b;
-        public static final int pref_kill_by_root_exp=0x7f0b003c;
-        public static final int pref_next_distance=0x7f0b0039;
-        public static final int pref_wait_time=0x7f0b003a;
+        public static final int pref_kill_by_root=0x7f0b003d;
+        public static final int pref_kill_by_root_exp=0x7f0b003e;
+        public static final int pref_next_distance=0x7f0b003b;
+        public static final int pref_wait_time=0x7f0b003c;
         public static final int text_Activated=0x7f0b0036;
         public static final int text_FileNotFound=0x7f0b0032;
         public static final int text_InvalidKMLFormat=0x7f0b0031;
         public static final int text_KMLNotLoaded=0x7f0b0037;
         public static final int text_OpenGME=0x7f0b0034;
         public static final int text_OpenKML=0x7f0b0033;
+        public static final int text_ParentDir=0x7f0b0039;
+        public static final int text_SelectDir=0x7f0b003a;
         public static final int text_Setting=0x7f0b0035;
         public static final int text_millisecond=0x7f0b0038;
         /**  Text on a placeholder buy button when Google Play services is not

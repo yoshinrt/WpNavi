@@ -1,6 +1,7 @@
 package jp.dds.wpnavi;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -28,8 +29,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -44,7 +43,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogListener {
+public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogListener{
 
 	static final boolean bDebug		= BuildConfig.DEBUG;
 	static final boolean bEnableAds	= true;
@@ -98,7 +97,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 			CameraPosition cameraPos = new CameraPosition.Builder()
 				.target( new LatLng( Pref.getFloat( "key_gmap_lat", 36.4f ), Pref.getFloat( "key_gmap_lng", 137.5f )))
 				.zoom( Pref.getFloat( "key_gmap_zoom", 5 ))
-				.bearing(0)
+				.bearing( 0 )
 				.build();
 			mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
 
@@ -138,7 +137,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 
 	public void onClickStartNavi( View v ){
 		if( WayPoint.Size() == 0 ){
-			Toast.makeText( this, getResources().getText( R.string.text_KMLNotLoaded ), Toast.LENGTH_LONG ).show();
+			Toast.makeText( this, R.string.text_KMLNotLoaded, Toast.LENGTH_LONG ).show();
 			return;
 		}
 
@@ -197,11 +196,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 		if( mMap != null && Markers.size() != 0 ){
 			// 元 CurWP のアイコンを blue にする
 			Markers.get( iCurWayPoint ).setIcon(
-				BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE )
+				BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_BLUE )
 			);
 
 			Markers.get( iNewWp ).setIcon(
-				BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED )
+				BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_RED )
 			);
 		}
 		iCurWayPoint = iNewWp;
@@ -230,7 +229,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 	private static final int	KML_LINESTRING	= 1 << 1;
 	private static final int	KML_COORDINATES	= 1 << 2;
 
-	@SuppressLint("NewApi")
+	@SuppressLint( "NewApi" )
 	public boolean LoadKML( String strKmlFile ){
 		int		iState;
 		String	strTitle = null;
@@ -239,10 +238,10 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 
 		// KMK を開く
 		FileInputStream fsIn;
-		try {
+		try{
 			fsIn = new FileInputStream( strKmlFile );
 		}catch( FileNotFoundException e ){
-			Toast.makeText( this, getResources().getText( R.string.text_FileNotFound ), Toast.LENGTH_LONG ).show();
+			Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
 			return false;
 		}
 
@@ -281,7 +280,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 					break;
 
 				case XmlPullParser.TEXT: // タグの内容
-					if(( iState & KML_COORDINATES ) != 0){
+					if(( iState & KML_COORDINATES ) != 0 ){
 						str = xpp.getText();
 
 						if(( iState & KML_POINT ) != 0 ){
@@ -330,7 +329,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 				}
 			}
 		}catch( Exception e ){
-			Toast.makeText( this, getResources().getText( R.string.text_InvalidKMLFormat ), Toast.LENGTH_LONG ).show();
+			Toast.makeText( this, R.string.text_InvalidKMLFormat, Toast.LENGTH_LONG ).show();
 			// e.printStackTrace();
 			try{ fsIn.close(); }catch( IOException e2 ){}
 			return false;
@@ -341,7 +340,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 
 		// 一応数チェック
 		if( WayPoint.Size() == 0 ){
-			Toast.makeText( this, getResources().getText( R.string.text_InvalidKMLFormat ), Toast.LENGTH_LONG ).show();
+			Toast.makeText( this, R.string.text_InvalidKMLFormat, Toast.LENGTH_LONG ).show();
 			return false;
 		}
 
@@ -404,13 +403,24 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialogL
 	public boolean onOptionsItemSelected( MenuItem item ){
 		switch( item.getItemId()){
 			case R.id.itemLoadKML:
-				FileOpenDialog fod = new FileOpenDialog( this, this, false );
+				FileOpenDialog fod = new FileOpenDialog( this, this, FileOpenDialog.MODE_FILE,
+					new FileFilter(){
+						public boolean accept( File pathname ){
+							// ディレクトリだけ許可
+							return !pathname.getName().startsWith( "." ) && (
+								pathname.isDirectory() ||
+								pathname.getName().endsWith( ".kml" ) ||
+								pathname.getName().endsWith( ".xml" )
+							);
+						}
+					}
+				);
 				fod.openDirectory( strKmlFile != null ? strKmlFile : Environment.getExternalStorageDirectory().getPath());
 				return true;
 
 			/*
 			case R.id.itemOpenGME:
-				startActivity( new Intent(Intent.ACTION_VIEW,
+				startActivity( new Intent( Intent.ACTION_VIEW,
 					Uri.parse( strGMEUrl + "/?authuser=0&action=open" )));
 				return true;
 			*/

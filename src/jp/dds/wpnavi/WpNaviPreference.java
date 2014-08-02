@@ -9,7 +9,7 @@ import android.preference.PreferenceActivity;
 import android.util.Log;
 
 public class WpNaviPreference extends PreferenceActivity
-	implements OnSharedPreferenceChangeListener {
+	implements OnSharedPreferenceChangeListener{
 
 	private static final boolean bDebug = WpNaviActivity.bDebug;
 
@@ -18,13 +18,13 @@ public class WpNaviPreference extends PreferenceActivity
 
 	// create
 	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
+	public void onCreate( Bundle savedInstanceState ){
+		super.onCreate( savedInstanceState );
 
 		addPreferencesFromResource( R.xml.preference );
 
-		EditNextDistance	= ( EditTextPreference	) getPreferenceScreen().findPreference( "key_next_distance" );
-		EditWaitTime		= ( EditTextPreference	) getPreferenceScreen().findPreference( "key_wait_time" );
+		EditNextDistance	= ( EditTextPreference	)getPreferenceScreen().findPreference( "key_next_distance" );
+		EditWaitTime		= ( EditTextPreference	)getPreferenceScreen().findPreference( "key_wait_time" );
 	}
 
 	// callback 登録・解除
@@ -63,8 +63,8 @@ public class WpNaviPreference extends PreferenceActivity
 
 	// 画面回転時の destroy 防止
 	@Override
-	public void onConfigurationChanged(Configuration newConfig) {
-		super.onConfigurationChanged(newConfig);
+	public void onConfigurationChanged( Configuration newConfig ){
+		super.onConfigurationChanged( newConfig );
 		if( bDebug ) Log.d( "WpNaviUtility", "WpNaviPreference::onConfigurationChanged" );
 	}
 
