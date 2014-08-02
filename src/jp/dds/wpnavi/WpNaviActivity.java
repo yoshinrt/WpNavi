@@ -47,7 +47,7 @@ import jp.dds.dds_lib.FileOpenDialog;
 public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.FileOpenDialogListener{
 
 	static final boolean bDebug		= BuildConfig.DEBUG;
-	static final boolean bEnableAds	= true;
+	static boolean bEnableAds	= true;
 	private static final String strGMEUrl = "https://mapsengine.google.com/map";
 
 	private int	iCurWayPoint	= 0;
@@ -73,6 +73,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		Pref = PreferenceManager.getDefaultSharedPreferences( this );
 		
 		// 広告
+		bEnableAds = Pref.getInt( "key_flag", 0 ) != 44298893;
 		if( bEnableAds ){
 			adView = new AdView( this );
 			adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
@@ -133,6 +134,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
 		ed.putFloat( "key_gmap_zoom", cam.zoom );
 		ed.putString( "key_kml_file", strKmlFile );
+		
+		int i;
+		if(( i = GetPrefInt( "key_next_distance", 0 )) == 44298893 ){
+			ed.putInt( "key_flag", i );
+		}
 		ed.commit();
 	}
 
