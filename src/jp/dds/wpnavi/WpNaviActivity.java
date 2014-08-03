@@ -63,6 +63,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	private Coordinate	WayPoint	= new Coordinate();
 	private SharedPreferences Pref	= null;
 	private String	m_strKmlFile	= null;
+	private boolean m_bDownloading	= false;
 
 	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
 	
@@ -535,6 +536,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			request.setAllowedNetworkTypes( DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI );
 			//request.setMimeType( "application/vnd.google-earth.kml+xml" );
 			
+			m_bDownloading = true;
 			(( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).enqueue( request );
 		}
 		return true;
@@ -552,7 +554,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				query.setFilterById( id );
 				Cursor cursor = (( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).query( query );
 
-				if( cursor.moveToFirst()){
+				if( cursor.moveToFirst() && m_bDownloading ){
 					int status = cursor.getInt( cursor.getColumnIndex( DownloadManager.COLUMN_STATUS ));
 					int reason = cursor.getInt( cursor.getColumnIndex( DownloadManager.COLUMN_REASON ));
 					if( bDebug ){
@@ -561,6 +563,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 					}
 					
 					if( status == DownloadManager.STATUS_SUCCESSFUL ){
+						m_bDownloading = false;
+						
 						// ダウンロードに成功した場合
 						String strTmpFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlNameTmp;
 						String strKmlFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName;
@@ -575,7 +579,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 					}
 				}
 				cursor.close();
-
 			}
 		}
 	};
@@ -585,7 +588,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 	
 	final void UnregisterBroadcastReceiver(){
-		unregisterReceiver( mReceiver );
+		if( mReceiver != null ) unregisterReceiver( mReceiver );
+		mReceiver = null;
 	}
 	
 	/*** Service ************************************************************/
