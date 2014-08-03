@@ -516,7 +516,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				( new File( strDstFile )).delete();
 			}catch( Exception e ){}
 			
-			if( m_strKmlFile.equals( strDstFile )) m_strKmlFile = null;
+			if( m_strKmlFile != null && m_strKmlFile.equals( strDstFile )) m_strKmlFile = null;
 			
 			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
 
