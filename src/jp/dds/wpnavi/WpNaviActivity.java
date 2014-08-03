@@ -56,7 +56,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	static final boolean bDebug		= BuildConfig.DEBUG;
 	static boolean bEnableAds	= true;
 	private static final String m_strGMEUrl = "https://mapsengine.google.com/map";
-	private static final String m_strDownloadKmlName = "/wpnavi.kml";
+	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
+	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
 
 	private int	iCurWayPoint	= 0;
 	private Coordinate	WayPoint	= new Coordinate();
@@ -266,7 +267,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		try{
 			fsIn = new FileInputStream( strKmlFile );
 		}catch( FileNotFoundException e ){
-			Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
+			//Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
 			return false;
 		}
 
@@ -510,13 +511,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		/** リンク先のURLを取得する。 */
 		String strUrl = intent.getDataString();
 		if( strUrl != null ){			
-			String strDstFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName;
+			String strDstFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlNameTmp;
 			
 			try{
 				( new File( strDstFile )).delete();
 			}catch( Exception e ){}
-			
-			if( m_strKmlFile != null && m_strKmlFile.equals( strDstFile )) m_strKmlFile = null;
 			
 			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
 
@@ -531,7 +530,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:kmlUrl:" + uriBuilder );
 			
 			Request request = new Request( uriBuilder.build());
-			request.setDestinationInExternalFilesDir( WpNaviActivity.this, Environment.DIRECTORY_DOWNLOADS, m_strDownloadKmlName );
+			request.setDestinationInExternalFilesDir( WpNaviActivity.this, Environment.DIRECTORY_DOWNLOADS, m_strDownloadKmlNameTmp );
 			request.setVisibleInDownloadsUi( false );
 			request.setAllowedNetworkTypes( DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI );
 			//request.setMimeType( "application/vnd.google-earth.kml+xml" );
@@ -563,9 +562,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 					
 					if( status == DownloadManager.STATUS_SUCCESSFUL ){
 						// ダウンロードに成功した場合
-						LoadKML(
-							WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName
-						);
+						String strTmpFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlNameTmp;
+						String strKmlFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName;
+						
+						File fileKml = new File( strKmlFile );
+						try{ fileKml.delete(); }catch( Exception e ){}
+						try{ ( new File( strTmpFile )).renameTo( fileKml ); }catch( Exception e ){}
+						LoadKML( strKmlFile );
 					}else{
 						// ダウンロードに失敗した場合
 						Toast.makeText( WpNaviActivity.this, R.string.text_DownloadFailed, Toast.LENGTH_LONG ).show();
