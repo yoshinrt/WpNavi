@@ -18,11 +18,11 @@ import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 
-import android.annotation.SuppressLint;
 import android.app.DownloadManager;
 import android.app.DownloadManager.Query;
 import android.app.DownloadManager.Request;
@@ -67,6 +67,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	
 	private LinearLayout layout_ad;	//広告表示用スペース
 	private AdView adView;
+	private int	m_iMagicNum		= 0;
 
 	/*** Activity management ************************************************/
 
@@ -126,7 +127,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 			// KML ロード
 			m_strKmlFile = Pref.getString( "key_kml_file", null );
-			if( m_strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( m_strKmlFile );
+
+			(( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getView().post( new Runnable(){
+				@Override
+				public void run(){
+					if( m_strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( m_strKmlFile );
+				}
+			});
 		}
 	}
 
@@ -146,9 +153,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		ed.putFloat( "key_gmap_zoom", cam.zoom );
 		ed.putString( "key_kml_file", m_strKmlFile );
 		
-		int i;
-		if(( i = GetPrefInt( "key_next_distance", 0 )) == 44298893 ){
-			ed.putInt( "key_flag", i );
+		if( m_iMagicNum == 44298893 ){
+			ed.putInt( "key_flag", m_iMagicNum );
 		}
 		ed.commit();
 	}
@@ -252,8 +258,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	public boolean LoadKML( String strKmlFile ){
 		int		iState;
 		String	strTitle = null;
-
-		if( mMap == null ) return false;
+		
+		if( mMap == null || strKmlFile == null ) return false;
 
 		// KMK を開く
 		FileInputStream fsIn;
@@ -269,9 +275,12 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		WayPoint.Clear();	// WP 等のクリア
 		iState = KML_NONE;
 
-		double[] Point = new double[ 2 ];
+		double[] Point = new double[ 6 ];
+		Point[ 2 ] = Point[ 3 ] = 1000;		// min Lng, Lat
+		Point[ 4 ] = Point[ 5 ] = -1000;	// max Lng, Lat
+		
 		PolylineOptions PolyLineOpt = new PolylineOptions();
-		int iMinDistance = GetPrefInt( "key_next_distance", 50 );
+		int iMinDistance = Pref.getInt( "key_NextDistance", 50 );
 
 		try{
 			xpp.setInput( fsIn, "UTF-8" );
@@ -373,6 +382,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		// タイトル設定
 		if( strTitle != null ){
 			setTitle( strTitle );
+			
+			// 広告 OFF マジック #
+			try{
+				m_iMagicNum = Integer.parseInt( strTitle );
+			}catch( Exception e ){
+				m_iMagicNum = 0;
+			}
 		}else{
 			setTitle( R.string.app_name );
 		}
@@ -382,9 +398,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			MarkerOptions MakerOpt = new MarkerOptions();
 			MakerOpt.position( WayPoint.GetPoint( i ));
 			MakerOpt.title( String.format( "WP%d", i + 1 ));
-			MakerOpt.icon( BitmapDescriptorFactory.defaultMarker(
-				i != 0 ? BitmapDescriptorFactory.HUE_BLUE : BitmapDescriptorFactory.HUE_RED
-			));
+			MakerOpt.icon( BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_BLUE ));
 			//MakerOpt.snippet( location.toString());
 			Markers.add( mMap.addMarker( MakerOpt ));
 		}
@@ -394,10 +408,29 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		PolyLineOpt.width( 6 );
 		mMap.addPolyline( PolyLineOpt );
 
-		SetMoveCurWayPoint( 0 );
+		SetCurWayPoint( 0 );
+		
+		// ルートが 180W をまたいでいたら，補正
+		if( Point[ 4 ] - Point[ 2 ] > 180 ){
+			double tmp = Point[ 4 ];
+			Point[ 4 ] = Point[ 2 ];
+			Point[ 2 ] = tmp;
+		}
+		
+		// ルート全体に移動
+		mMap.animateCamera(
+			CameraUpdateFactory.newLatLngBounds(
+				LatLngBounds.builder()
+					.include( new LatLng( Point[ 5 ], Point[ 4 ] ))
+					.include( new LatLng( Point[ 3 ], Point[ 2 ] ))
+					.build(),
+				64	// padding
+			)
+		);
+		
 		return true;
 	}
-
+	
 	void ParseCoordinate( String str, double Point[] ){
 		int c1, c2;
 		if(
@@ -406,9 +439,14 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		){
 			Point[ 0 ] = Double.parseDouble( str.substring( 0, c1 ));
 			Point[ 1 ] = Double.parseDouble( str.substring( c1 + 1, c2 ));
+			
+			if( Point[ 2 ] > Point[ 0 ] ) Point[ 2 ] = Point[ 0 ];
+			if( Point[ 4 ] < Point[ 0 ] ) Point[ 4 ] = Point[ 0 ];
+			if( Point[ 3 ] > Point[ 1 ] ) Point[ 3 ] = Point[ 1 ];
+			if( Point[ 5 ] < Point[ 1 ] ) Point[ 5 ] = Point[ 1 ];
 		}
 	}
-
+	
 	/*** Option menu ********************************************************/
 
 	@Override
@@ -423,7 +461,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	public boolean onOptionsItemSelected( MenuItem item ){
 		switch( item.getItemId()){
 			case R.id.itemLoadKML:
-				FileOpenDialog fod = new FileOpenDialog( this, this, FileOpenDialog.MODE_FILE,
+				FileOpenDialog fod = new FileOpenDialog(
+					WpNaviActivity.this, this, FileOpenDialog.MODE_FILE,
 					new FileFilter(){
 						public boolean accept( File pathname ){
 							return !pathname.getName().startsWith( "." ) && (
@@ -437,10 +476,12 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				fod.openDirectory( m_strKmlFile );
 				return true;
 
-			case R.id.itemOpenGME:
-				startActivity( new Intent( Intent.ACTION_VIEW,
-					Uri.parse( m_strGMEUrl + "/?authuser=0&action=open" )));
+			case R.id.itemOpenGME: {
+				Intent intent = new Intent( Intent.ACTION_VIEW,	Uri.parse( m_strGMEUrl + "/?authuser=0&action=open" ));
+				intent.setFlags( Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
+				startActivity( intent );
 				return true;
+			}
 				
 			case R.id.itemSetting:
 				Intent intent = new Intent( WpNaviActivity.this, WpNaviPreference.class );
@@ -469,9 +510,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		/** リンク先のURLを取得する。 */
 		String strUrl = intent.getDataString();
 		if( strUrl != null ){			
+			String strDstFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName;
+			
 			try{
-				( new File( WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlName )).delete();
+				( new File( strDstFile )).delete();
 			}catch( Exception e ){}
+			
+			if( m_strKmlFile.equals( strDstFile )) m_strKmlFile = null;
 			
 			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
 
@@ -581,8 +626,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		// 設定値を Service に設定
 		intent.putIntegerArrayListExtra( "WayPoint", WayPoint.Points );
 		mService.iCurWayPoint	= iCurWayPoint;
-		mService.iNextDistance	= GetPrefInt( "key_next_distance", 50 );
-		mService.iWaitTime		= GetPrefInt( "key_wait_time", 6000 );
+		mService.iNextDistance	= Pref.getInt( "key_NextDistance", 50 );
+		mService.iWaitTime		= Pref.getInt( "key_WaitTime", 60 ) * 100;
 		mService.bKillByRoot	= Pref.getBoolean( "key_kill_by_root", false );
 
 		startService( intent );
@@ -605,18 +650,5 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			unbindService( mConnection );
 			mIsBound = false;
 		}
-	}
-
-	/*** その他 *************************************************************/
-
-	int GetPrefInt( String key, int iDefault ){
-		int	iRet;
-
-		try{
-			iRet = Integer.parseInt( Pref.getString( key, "x" ));
-		}catch( Exception e ){
-			iRet = iDefault;
-		}
-		return iRet;
 	}
 }

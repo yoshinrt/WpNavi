@@ -1502,9 +1502,9 @@ containing a value of this type.
         public static final int icon=0x7f08003c;
         public static final int ifRoom=0x7f08000a;
         public static final int image=0x7f080039;
-        public static final int itemLoadKML=0x7f080055;
-        public static final int itemOpenGME=0x7f080056;
-        public static final int itemSetting=0x7f080057;
+        public static final int itemLoadKML=0x7f08005a;
+        public static final int itemOpenGME=0x7f08005b;
+        public static final int itemSetting=0x7f08005c;
         public static final int layout_ad=0x7f080050;
         public static final int linearLayout2=0x7f080051;
         public static final int listMode=0x7f080001;
@@ -1532,6 +1532,11 @@ containing a value of this type.
         public static final int search_plate=0x7f080048;
         public static final int search_src_text=0x7f080049;
         public static final int search_voice_btn=0x7f08004d;
+        public static final int seekBarPrefBarContainer=0x7f080058;
+        public static final int seekBarPrefSeekBar=0x7f080059;
+        public static final int seekBarPrefUnitsLeft=0x7f080057;
+        public static final int seekBarPrefUnitsRight=0x7f080055;
+        public static final int seekBarPrefValue=0x7f080056;
         public static final int selectionDetails=0x7f080023;
         public static final int shortcut=0x7f080040;
         public static final int showCustom=0x7f080007;
@@ -1601,7 +1606,8 @@ containing a value of this type.
         public static final int abc_search_view=0x7f030016;
         public static final int abc_simple_decor=0x7f030017;
         public static final int main=0x7f030018;
-        public static final int support_simple_spinner_dropdown_item=0x7f030019;
+        public static final int seek_bar_preference=0x7f030019;
+        public static final int support_simple_spinner_dropdown_item=0x7f03001a;
     }
     public static final class menu {
         public static final int wp_navi=0x7f0d0000;
@@ -1760,7 +1766,7 @@ containing a value of this type.
         public static final int text_ParentDir=0x7f060000;
         public static final int text_SelectDir=0x7f060001;
         public static final int text_Setting=0x7f060037;
-        public static final int text_millisecond=0x7f06003a;
+        public static final int text_TimeScale=0x7f06003a;
         /**  Text on a placeholder buy button when Google Play services is not
          available or up-to-date 
          */

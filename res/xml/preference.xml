@@ -1,7 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen
-  xmlns:android="http://schemas.android.com/apk/res/android">
-	<EditTextPreference android:dialogTitle="@string/pref_wait_time" android:title="@string/pref_wait_time" android:key="key_wait_time" android:inputType="number" android:defaultValue="6000"/>
-	<EditTextPreference android:dialogTitle="@string/pref_next_distance" android:title="@string/pref_next_distance" android:key="key_next_distance" android:inputType="number" android:defaultValue="50"/>
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:robobunny="http://robobunny.com"
+>
+	<jp.dds.dds_lib.SeekBarPreference
+		android:key="key_WaitTime"
+		android:dialogTitle="@string/pref_wait_time"
+		android:title="@string/pref_wait_time"
+		android:defaultValue="60"
+		android:max="100"
+		robobunny:min="0"
+		robobunny:unitsRight=" x0.1sec"
+	/>
+	<jp.dds.dds_lib.SeekBarPreference
+		android:key="key_NextDistance"
+		android:dialogTitle="@string/pref_next_distance"
+		android:title="@string/pref_next_distance"
+		android:defaultValue="50"
+		android:max="100"
+		robobunny:min="10"
+		robobunny:unitsRight="m"
+	/>
 	<CheckBoxPreference android:key="key_kill_by_root" android:title="@string/pref_kill_by_root" android:summary="@string/pref_kill_by_root_exp"/>		
 </PreferenceScreen>

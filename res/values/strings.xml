@@ -10,7 +10,7 @@
     <string name="text_OpenGME">マイマップ</string><string name="text_Setting">設定...</string>
     <string name="text_Activated">WP%d へナビ中</string>
     <string name="text_KMLNotLoaded">KML がロードされていません</string>
-    <string name="text_millisecond">ミリ秒</string><string name="text_DownloadFailed">KMLをダウンロードできません 共有設定を見なおしてください</string><string name="pref_next_distance">経由地の範囲 (半径)</string>
+    <string name="text_TimeScale"> ×0.1秒</string><string name="text_DownloadFailed">KMLをダウンロードできません 共有設定を見なおしてください</string><string name="pref_next_distance">経由地の範囲 (半径)</string>
     <string name="pref_wait_time">ナビ再起動時の待ち時間</string>
     <string name="pref_kill_by_root">確実なナビ再起動</string>
     <string name="pref_kill_by_root_exp">root権限が必要</string>
