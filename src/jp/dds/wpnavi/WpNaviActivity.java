@@ -34,6 +34,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -53,17 +54,18 @@ import jp.dds.dds_lib.FileOpenDialog;
 
 public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.FileOpenDialogListener{
 
-	static final boolean bDebug		= BuildConfig.DEBUG;
+	static final boolean bDebug	= BuildConfig.DEBUG;
 	static boolean bEnableAds	= true;
 	private static final String m_strGMEUrl = "https://mapsengine.google.com/map";
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
 
-	private int	iCurWayPoint	= 0;
+	private int	iCurWayPoint		= 0;
 	private Coordinate	WayPoint	= new Coordinate();
 	private SharedPreferences Pref	= null;
 	private String	m_strKmlFile	= null;
 	private boolean m_bDownloading	= false;
+	private	boolean m_bQuitService	= false;
 
 	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
 	
@@ -107,12 +109,12 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		super.onResume();
 		if( bEnableAds ) adView.resume();	// 広告
 		BindService();
-
+		
 		if( mMap != null ){
 			// Map 移動
 			CameraPosition cameraPos = new CameraPosition.Builder()
-				.target( new LatLng( Pref.getFloat( "key_gmap_lat", 36.4f ), Pref.getFloat( "key_gmap_lng", 137.5f )))
-				.zoom( Pref.getFloat( "key_gmap_zoom", 5 ))
+				.target( new LatLng( Pref.getFloat( "key_gmap_lat", 0f ), Pref.getFloat( "key_gmap_lng", 0f )))
+				.zoom( Pref.getFloat( "key_gmap_zoom", 0 ))
 				.bearing( 0 )
 				.build();
 			mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
@@ -198,6 +200,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		super.onDestroy();
 	}
 
+	// 画面回転時の destroy 防止
+	@Override
+	public void onConfigurationChanged( Configuration newConfig ){
+		super.onConfigurationChanged( newConfig );
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConfigurationChanged" );
+	}
+	
 	/*** Google Maps ********************************************************/
 
 	private GoogleMap mMap;
@@ -243,8 +252,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( Markers.get( iNewWp ).getPosition())
 				.zoom( camOld.zoom )
-				.bearing( camOld.bearing )
-				.tilt( camOld.tilt )
 				.build();
 			mMap.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
 		}
@@ -508,37 +515,51 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 	final boolean GMEIntent( Intent intent ){
 		if( intent == null ) return false;
-
-		/** リンク先のURLを取得する。 */
-		String strUrl = intent.getDataString();
-		if( strUrl != null ){			
-			String strDstFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlNameTmp;
-			
-			try{
-				( new File( strDstFile )).delete();
-			}catch( Exception e ){}
-			
-			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
-
-			// mid を取得
-			String strMid = strUrl.replaceFirst( ".*mid=", "" ).replaceFirst( "&.*", "" );
-			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strMid );
-			
-			Uri.Builder uriBuilder = Uri.parse( m_strGMEUrl + "/kml" ).buildUpon();
-			uriBuilder.appendQueryParameter( "authuser", "0" );
-			uriBuilder.appendQueryParameter( "mid", strMid );
-
-			if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:kmlUrl:" + uriBuilder );
-			
-			Request request = new Request( uriBuilder.build());
-			request.setDestinationInExternalFilesDir( WpNaviActivity.this, Environment.DIRECTORY_DOWNLOADS, m_strDownloadKmlNameTmp );
-			request.setVisibleInDownloadsUi( false );
-			request.setAllowedNetworkTypes( DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI );
-			//request.setMimeType( "application/vnd.google-earth.kml+xml" );
-			
-			m_bDownloading = true;
-			(( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).enqueue( request );
+		if( bDebug ) Log.d( "WpNavi", "GMEIntent:Action:" + intent.getAction());
+		
+		// notification から呼ばれた
+		if( intent.getBooleanExtra( "quit_service", false )){
+			if( bDebug ) Log.d( "WpNavi", "GMEIntent:Killed by notification" );
+			m_bQuitService = true;
+			return true;
 		}
+		
+		// URL フィルタに引っかかった
+		String strUrl = intent.getDataString();
+		if( strUrl != null ) return DownloadURL( strUrl );
+		
+		return false;
+	}
+	
+	final boolean DownloadURL( String strUrl ){
+		/** リンク先のURLを取得する。 */
+		String strDstFile = WpNaviActivity.this.getExternalFilesDir( Environment.DIRECTORY_DOWNLOADS ) + m_strDownloadKmlNameTmp;
+		
+		try{
+			( new File( strDstFile )).delete();
+		}catch( Exception e ){}
+		
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
+
+		// mid を取得
+		String strMid = strUrl.replaceFirst( ".*mid=", "" ).replaceFirst( "&.*", "" );
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strMid );
+		
+		Uri.Builder uriBuilder = Uri.parse( m_strGMEUrl + "/kml" ).buildUpon();
+		uriBuilder.appendQueryParameter( "authuser", "0" );
+		uriBuilder.appendQueryParameter( "mid", strMid );
+
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:kmlUrl:" + uriBuilder );
+		
+		Request request = new Request( uriBuilder.build());
+		request.setDestinationInExternalFilesDir( WpNaviActivity.this, Environment.DIRECTORY_DOWNLOADS, m_strDownloadKmlNameTmp );
+		request.setVisibleInDownloadsUi( false );
+		request.setAllowedNetworkTypes( DownloadManager.Request.NETWORK_MOBILE | DownloadManager.Request.NETWORK_WIFI );
+		//request.setMimeType( "application/vnd.google-earth.kml+xml" );
+		
+		m_bDownloading = true;
+		(( DownloadManager )getSystemService( DOWNLOAD_SERVICE )).enqueue( request );
+		
 		return true;
 	}
 	
@@ -611,10 +632,12 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			// サービスの WP 状態を取得，
 			// ナビをリスタートした直後でなければ StopService()
 			int iStatus = mService.GetStatus();
-			if( iStatus != WpNaviService.STATUS_RESTART ){
+			if( m_bQuitService || iStatus != WpNaviService.STATUS_RESTART ){
 				if( iStatus == WpNaviService.STATUS_NORMAL ) SetCurWayPoint( mService.iCurWayPoint );
 				mService.StopNavi();
+				if( bDebug ) Log.d( "WpNavi", "Service stopped:" + m_bQuitService + ":" + iStatus );
 			}
+			m_bQuitService = false;
 			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + iCurWayPoint );
 		}
 

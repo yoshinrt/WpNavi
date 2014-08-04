@@ -1757,16 +1757,16 @@ containing a value of this type.
         public static final int pref_next_distance=0x7f06003c;
         public static final int pref_wait_time=0x7f06003d;
         public static final int text_Activated=0x7f060038;
-        public static final int text_DownloadFailed=0x7f06003b;
+        public static final int text_DownloadFailed=0x7f06003a;
         public static final int text_FileNotFound=0x7f060034;
         public static final int text_InvalidKMLFormat=0x7f060033;
         public static final int text_KMLNotLoaded=0x7f060039;
+        public static final int text_NoGPS=0x7f06003b;
         public static final int text_OpenGME=0x7f060036;
         public static final int text_OpenKML=0x7f060035;
         public static final int text_ParentDir=0x7f060000;
         public static final int text_SelectDir=0x7f060001;
         public static final int text_Setting=0x7f060037;
-        public static final int text_TimeScale=0x7f06003a;
         /**  Text on a placeholder buy button when Google Play services is not
          available or up-to-date 
          */

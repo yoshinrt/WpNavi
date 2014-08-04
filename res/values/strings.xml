@@ -4,16 +4,20 @@
     <string name="button_prevwp">&lt;&lt;前</string>
     <string name="button_start_navi">ナビ開始</string>
     <string name="button_nextwp">次&gt;&gt;</string>
-    <string name="text_InvalidKMLFormat">不正な KML フォーマットです</string>
+    <string name="text_InvalidKMLFormat">不正なKMLフォーマットです</string>
     <string name="text_FileNotFound">ファイルが見つかりません</string>
-    <string name="text_OpenKML">KML を開く</string>
-    <string name="text_OpenGME">マイマップ</string><string name="text_Setting">設定...</string>
+    <string name="text_OpenKML">KMLを開く</string>
+    <string name="text_OpenGME">マイマップ</string>
+    <string name="text_Setting">設定...</string>
     <string name="text_Activated">WP%d へナビ中</string>
-    <string name="text_KMLNotLoaded">KML がロードされていません</string>
-    <string name="text_TimeScale"> ×0.1秒</string><string name="text_DownloadFailed">KMLをダウンロードできません 共有設定を見なおしてください</string><string name="pref_next_distance">経由地の範囲 (半径)</string>
+    <string name="text_KMLNotLoaded">KMLがロードされていません</string>
+    <string name="text_DownloadFailed">KMLをダウンロードできません\n共有設定を見なおしてください</string>
+    <string name="text_NoGPS">GPSが取得できません</string>
+    <string name="pref_next_distance">経由地の範囲 (半径)</string>
     <string name="pref_wait_time">ナビ再起動時の待ち時間</string>
     <string name="pref_kill_by_root">確実なナビ再起動</string>
     <string name="pref_kill_by_root_exp">root権限が必要</string>
+    
     
     
     

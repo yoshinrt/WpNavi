@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
+import android.widget.Toast;
 
 public class WpNaviService extends Service implements LocationListener{
 	private static final boolean bDebug = WpNaviActivity.bDebug;
@@ -51,17 +52,20 @@ public class WpNaviService extends Service implements LocationListener{
 
 	@Override
 	public int onStartCommand( Intent intent, int flags, int startId ){
-		GetLocationManager();
-
-		WayPoint = new Coordinate( intent.getIntegerArrayListExtra( "WayPoint" ));
-
-		if( bDebug ) Log.d( "WpNavi",
-			String.format(
-				"Service::onStartCommand:WP=%d num=%d",
-				iCurWayPoint, WayPoint.Size()
-			)
-		);
-		StartNavi();
+		if( GetLocationManager() == false ){
+			// GPS 取得失敗
+			Toast.makeText( getApplicationContext(), R.string.text_NoGPS, Toast.LENGTH_LONG ).show();
+		}else{
+			WayPoint = new Coordinate( intent.getIntegerArrayListExtra( "WayPoint" ));
+			
+			if( bDebug ) Log.d( "WpNavi",
+				String.format(
+					"Service::onStartCommand:WP=%d num=%d",
+					iCurWayPoint, WayPoint.Size()
+				)
+			);
+			StartNavi();
+		}
 		return START_NOT_STICKY;
 	}
 
@@ -145,12 +149,12 @@ public class WpNaviService extends Service implements LocationListener{
 
 	/*** GPS ハンドラ ***********************************************************/
 
-	final void GetLocationManager(){
-		if( mLocationManager != null ) return;
-
-		// 位置情報取得
-		mLocationManager = ( LocationManager )getSystemService( Context.LOCATION_SERVICE );
-
+	final boolean GetLocationManager(){
+		if( mLocationManager == null ){
+			// 位置情報取得
+			mLocationManager = ( LocationManager )getSystemService( Context.LOCATION_SERVICE );
+		}
+		
 		/*
 		// Criteriaオブジェクトを生成
 		Criteria criteria = new Criteria();
@@ -167,7 +171,13 @@ public class WpNaviService extends Service implements LocationListener{
 		*/
 
 		// LocationListenerを登録
-		mLocationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 1000, 0, this );
+		try{
+			mLocationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 1000, 0, this );
+		}catch( Exception e ){
+			return false;
+		}
+		
+		return true;
 	}
 
 	final void RemoveLocationManager(){
@@ -219,6 +229,7 @@ public class WpNaviService extends Service implements LocationListener{
 
 		Intent intent = new Intent( Intent.ACTION_VIEW );
 		intent.setClassName( "jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity" );
+		intent.putExtra( "quit_service", true );
 
 		//intentの設定
 		PendingIntent contentIntent = PendingIntent.getActivity( this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
