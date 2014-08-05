@@ -36,16 +36,13 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.res.Configuration;
 import android.database.Cursor;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
-import android.util.TypedValue;
 import android.util.Xml;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -83,10 +80,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 		super.onCreate( savedInstanceState );
 		setContentView( R.layout.main );
-		
-		ActionBar mActionBar = getSupportActionBar();
-		mActionBar.setBackgroundDrawable( new ColorDrawable( 0x80000000 ));
-
 		setUpMapIfNeeded();
 
 		// プリファレンス
@@ -227,12 +220,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			// Check if we were successful in obtaining the map.
 			if( mMap != null ){
 				mMap.setMyLocationEnabled( true );
-
-				TypedValue tv = new TypedValue();
-				if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
-				    int actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data,getResources().getDisplayMetrics());
-				    mMap.setPadding( 0, actionBarHeight, 0, 0 );
-				}
 				ui = mMap.getUiSettings();
 
 				// Keep the UI Settings state in sync with the checkboxes.
