@@ -103,7 +103,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
 			adView.setAdSize( AdSize.SMART_BANNER );
 			
-			layout_ad = ( LinearLayout )findViewById( R.id.layout_ad );
+			layout_ad = ( LinearLayout )findViewById( R.id.LinearLayout1 );
 			layout_ad.addView( adView );
 			
 			AdRequest adRequest = new AdRequest.Builder().build();
@@ -121,14 +121,6 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		BindService();
 		
 		if( mMap != null ){
-			// Map 移動
-			CameraPosition cameraPos = new CameraPosition.Builder()
-				.target( new LatLng( Pref.getFloat( "key_gmap_lat", 0f ), Pref.getFloat( "key_gmap_lng", 0f )))
-				.zoom( Pref.getFloat( "key_gmap_zoom", 0 ))
-				.bearing( 0 )
-				.build();
-			mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
-
 			// マーカークリックリスナー登録
 			mMap.setOnMarkerClickListener( new OnMarkerClickListener(){
 				@Override
@@ -145,7 +137,26 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			(( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getView().post( new Runnable(){
 				@Override
 				public void run(){
-					if( m_strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( m_strKmlFile );
+					TypedValue tv = new TypedValue();
+					if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
+					    mMap.setPadding( 0,
+					    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
+					    	0,
+					    	findViewById( R.id.buttonPrevWp ).getHeight()
+					    );
+					}
+					
+					if( m_strKmlFile != null && WayPoint.Size() == 0 ){
+						LoadKML( m_strKmlFile );
+					}else{
+						// Map 移動
+						CameraPosition cameraPos = new CameraPosition.Builder()
+							.target( new LatLng( Pref.getFloat( "key_gmap_lat", 0f ), Pref.getFloat( "key_gmap_lng", 0f )))
+							.zoom( Pref.getFloat( "key_gmap_zoom", 0 ))
+							.bearing( 0 )
+							.build();
+						mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
+					}
 				}
 			});
 		}
@@ -231,25 +242,18 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			if( mMap != null ){
 				mMap.setMyLocationEnabled( true );
 
-				TypedValue tv = new TypedValue();
-				if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
-				    int actionBarHeight = TypedValue.complexToDimensionPixelSize(tv.data,getResources().getDisplayMetrics());
-				    mMap.setPadding( 0, actionBarHeight, 0, 0 );
-				}
 				ui = mMap.getUiSettings();
 
 				// Keep the UI Settings state in sync with the checkboxes.
 				mMap.setMyLocationEnabled( true );
 				
-				UiSettings mUiSettings = mMap.getUiSettings();
- 				mUiSettings.setZoomControlsEnabled( true );
+ 				ui.setZoomControlsEnabled( true );
 				//mUiSettings.setCompassEnabled( true );
-				mUiSettings.setMyLocationButtonEnabled( true );
-				mUiSettings.setScrollGesturesEnabled( true );
-				mUiSettings.setZoomGesturesEnabled( true );
+				ui.setMyLocationButtonEnabled( true );
+				ui.setScrollGesturesEnabled( true );
+				ui.setZoomGesturesEnabled( true );
 				//mUiSettings.setTiltGesturesEnabled( true );
 				//mUiSettings.setRotateGesturesEnabled( true );
-				ui.setMyLocationButtonEnabled( true );
 			}
 		}
 	}

@@ -11,11 +11,11 @@ public final class R {
 		public static final int ic_launcher = 0x7f02006f;
 	}
 	public static final class id {
-		public static final int seekBarPrefBarContainer = 0x7f080058;
-		public static final int seekBarPrefSeekBar = 0x7f080059;
-		public static final int seekBarPrefUnitsLeft = 0x7f080057;
-		public static final int seekBarPrefUnitsRight = 0x7f080055;
-		public static final int seekBarPrefValue = 0x7f080056;
+		public static final int seekBarPrefBarContainer = 0x7f080057;
+		public static final int seekBarPrefSeekBar = 0x7f080058;
+		public static final int seekBarPrefUnitsLeft = 0x7f080056;
+		public static final int seekBarPrefUnitsRight = 0x7f080054;
+		public static final int seekBarPrefValue = 0x7f080055;
 	}
 	public static final class layout {
 		public static final int seek_bar_preference = 0x7f030019;
