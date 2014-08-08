@@ -306,7 +306,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		
 		if( mMap == null || strKmlFile == null ) return false;
 
-		// KMK を開く
+		// KML を開く
 		FileInputStream fsIn;
 		try{
 			fsIn = new FileInputStream( strKmlFile );
@@ -448,9 +448,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			Markers.add( mMap.addMarker( MakerOpt ));
 		}
 
+		float fDipScale = getApplicationContext().getResources().getDisplayMetrics().density;
+		
 		// Line を Map に追加
 		PolyLineOpt.color( 0xFF1166FF );
-		PolyLineOpt.width( 6 );
+		PolyLineOpt.width(( int )( 6 * fDipScale ));
 		mMap.addPolyline( PolyLineOpt );
 
 		SetCurWayPoint( 0 );
@@ -469,7 +471,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 					.include( new LatLng( Point[ 5 ], Point[ 4 ] ))
 					.include( new LatLng( Point[ 3 ], Point[ 2 ] ))
 					.build(),
-				64	// padding
+				( int )( 16 * fDipScale )	// padding
 			)
 		);
 		
