@@ -235,16 +235,16 @@ public class WpNaviService extends Service implements LocationListener{
 		PendingIntent contentIntent = PendingIntent.getActivity( this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT );
 		
 		// LargeIcon の Bitmap を生成
-		Bitmap largeIcon = BitmapFactory.decodeResource( getResources(), R.drawable.ic_launcher );
+		//Bitmap largeIcon = BitmapFactory.decodeResource( getResources(), R.drawable.ic_launcher );
 		
 		// NotificationBuilderを作成
 		Notification notification = new NotificationCompat.Builder( WpNaviService.this )
 			.setContentIntent( contentIntent )
 			.setTicker( strNotifyMsg )
-			.setSmallIcon( android.R.drawable.ic_menu_directions )
+			.setSmallIcon( R.drawable.ic_notify )
 			.setContentTitle( strNotifyMsg )
 			.setContentText( getResources().getText( R.string.app_name ))
-			.setLargeIcon( largeIcon )
+			//.setLargeIcon( largeIcon )
 			.setWhen( System.currentTimeMillis())
 			.setAutoCancel( false )
 			.setOngoing( true )

@@ -13,7 +13,6 @@ import com.google.android.gms.ads.*;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
-import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.CameraPosition;
@@ -22,7 +21,9 @@ import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.SupportMapFragment;
 
+import android.annotation.SuppressLint;
 import android.app.DownloadManager;
 import android.app.DownloadManager.Query;
 import android.app.DownloadManager.Request;
@@ -38,6 +39,7 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -71,6 +73,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	private boolean m_bDownloading	= false;
 	private	boolean m_bQuitService	= false;
 
+	private GoogleMap mMap;
 	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
 	
 	private LinearLayout layout_ad;	//広告表示用スペース
@@ -79,21 +82,27 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 	/*** Activity management ************************************************/
 
+	@SuppressLint( "InlinedApi" )
 	public void onCreate( Bundle savedInstanceState ){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onCreate" );
 
 		super.onCreate( savedInstanceState );
-		getWindow().requestFeature( Window.FEATURE_ACTION_BAR_OVERLAY );
+		
+		// プリファレンス
+		Pref = PreferenceManager.getDefaultSharedPreferences( this );
+		
+		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB ){
+			getWindow().requestFeature( Window.FEATURE_ACTION_BAR_OVERLAY );
+		}
 		setContentView( R.layout.main );
 		
 		// ActionBar オーバーレイ設定
-		ActionBar mActionBar = getSupportActionBar();
-		mActionBar.setBackgroundDrawable( new ColorDrawable( 0x80000000 ));
-
+		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB ){
+			ActionBar mActionBar = getSupportActionBar();
+			mActionBar.setBackgroundDrawable( new ColorDrawable( 0x80000000 ));
+		}
+		
 		setUpMapIfNeeded();
-
-		// プリファレンス
-		Pref = PreferenceManager.getDefaultSharedPreferences( this );
 		GMEIntent( getIntent());
 		
 		// 広告
@@ -133,35 +142,28 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 			// KML ロード
 			m_strKmlFile = Pref.getString( "key_kml_file", null );
-
-			(( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getView().post( new Runnable(){
-				@Override
-				public void run(){
-					TypedValue tv = new TypedValue();
-					if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
-					    mMap.setPadding( 0,
-					    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
-					    	0,
-					    	findViewById( R.id.buttonPrevWp ).getHeight()
-					    );
-					}
-					
-					if( m_strKmlFile != null && WayPoint.Size() == 0 ){
-						LoadKML( m_strKmlFile );
-					}else{
-						// Map 移動
-						CameraPosition cameraPos = new CameraPosition.Builder()
-							.target( new LatLng( Pref.getFloat( "key_gmap_lat", 0f ), Pref.getFloat( "key_gmap_lng", 0f )))
-							.zoom( Pref.getFloat( "key_gmap_zoom", 0 ))
-							.bearing( 0 )
-							.build();
-						mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
-					}
-				}
-			});
+			
+			// 渋滞情報
+			mMap.setTrafficEnabled( Pref.getBoolean( "key_traffic_info", false ));
 		}
 	}
 
+	@Override 
+	public void onWindowFocusChanged( boolean hasFocus ){
+		super.onWindowFocusChanged( hasFocus );
+		
+		TypedValue tv = new TypedValue();
+		if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
+		    mMap.setPadding( 0,
+		    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
+		    	0,
+		    	findViewById( R.id.buttonPrevWp ).getHeight()
+		    );
+		}
+		
+		if( m_strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( m_strKmlFile );
+	}
+	
 	@Override
 	protected void onPause(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onPause" );
@@ -230,10 +232,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	
 	/*** Google Maps ********************************************************/
 
-	private GoogleMap mMap;
-	private void setUpMapIfNeeded(){
-		UiSettings ui;
-	
+	private void setUpMapIfNeeded(){	
 		// Do a null check to confirm that we have not already instantiated the map.
 		if( mMap == null ){
 			// Try to obtain the map from the SupportMapFragment.
@@ -242,7 +241,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			if( mMap != null ){
 				mMap.setMyLocationEnabled( true );
 
-				ui = mMap.getUiSettings();
+				UiSettings ui = mMap.getUiSettings();
 
 				// Keep the UI Settings state in sync with the checkboxes.
 				mMap.setMyLocationEnabled( true );
@@ -254,6 +253,14 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				ui.setZoomGesturesEnabled( true );
 				//mUiSettings.setTiltGesturesEnabled( true );
 				//mUiSettings.setRotateGesturesEnabled( true );
+
+				// Map 移動
+				CameraPosition cameraPos = new CameraPosition.Builder()
+					.target( new LatLng( Pref.getFloat( "key_gmap_lat", 0f ), Pref.getFloat( "key_gmap_lng", 0f )))
+					.zoom( Pref.getFloat( "key_gmap_zoom", 0 ))
+					.bearing( 0 )
+					.build();
+				mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
 			}
 		}
 	}
