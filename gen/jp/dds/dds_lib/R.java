@@ -11,11 +11,11 @@ public final class R {
 		public static final int ic_launcher = 0x7f02006f;
 	}
 	public static final class id {
-		public static final int seekBarPrefBarContainer = 0x7f080057;
-		public static final int seekBarPrefSeekBar = 0x7f080058;
-		public static final int seekBarPrefUnitsLeft = 0x7f080056;
-		public static final int seekBarPrefUnitsRight = 0x7f080054;
-		public static final int seekBarPrefValue = 0x7f080055;
+		public static final int seekBarPrefBarContainer = 0x7f070057;
+		public static final int seekBarPrefSeekBar = 0x7f070058;
+		public static final int seekBarPrefUnitsLeft = 0x7f070056;
+		public static final int seekBarPrefUnitsRight = 0x7f070054;
+		public static final int seekBarPrefValue = 0x7f070055;
 	}
 	public static final class layout {
 		public static final int seek_bar_preference = 0x7f030019;
@@ -23,9 +23,5 @@ public final class R {
 	public static final class string {
 		public static final int text_ParentDir = 0x7f060000;
 		public static final int text_SelectDir = 0x7f060001;
-	}
-	public static final class style {
-		public static final int AppBaseTheme = 0x7f070000;
-		public static final int AppTheme = 0x7f070001;
 	}
 }

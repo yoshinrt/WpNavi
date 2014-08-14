@@ -66,8 +66,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
 
-	private int	iCurWayPoint		= 0;
-	private Coordinate	WayPoint	= new Coordinate();
+	private int	m_iCurWayPoint		= 0;
+	private Coordinate	m_WayPoint	= new Coordinate();
 	private SharedPreferences Pref	= null;
 	private String	m_strKmlFile	= null;
 	private boolean m_bDownloading	= false;
@@ -141,6 +141,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			});
 
 			// KML ロード
+			m_iCurWayPoint = Pref.getInt( "key_waypoint", 0 );
 			m_strKmlFile = Pref.getString( "key_kml_file", null );
 			
 			// 渋滞情報
@@ -161,7 +162,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		    );
 		}
 		
-		if( m_strKmlFile != null && WayPoint.Size() == 0 ) LoadKML( m_strKmlFile );
+		if( m_strKmlFile != null && m_WayPoint.Size() == 0 ) LoadKML( m_strKmlFile, m_iCurWayPoint );
 	}
 	
 	@Override
@@ -178,6 +179,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 		ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
 		ed.putFloat( "key_gmap_zoom", cam.zoom );
+		ed.putInt( "key_waypoint", m_iCurWayPoint );
 		ed.putString( "key_kml_file", m_strKmlFile );
 		
 		if( m_iMagicNum == 44298893 ){
@@ -187,7 +189,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 
 	public void onClickStartNavi( View v ){
-		if( WayPoint.Size() == 0 ){
+		if( m_WayPoint.Size() == 0 ){
 			Toast.makeText( this, R.string.text_KMLNotLoaded, Toast.LENGTH_LONG ).show();
 			return;
 		}
@@ -197,14 +199,14 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 
 	public void onClickPrevWp( View v ){
-		int iNewWp = iCurWayPoint - 1;
-		if( iNewWp < 0 ) iNewWp = WayPoint.Size() - 1;
+		int iNewWp = m_iCurWayPoint - 1;
+		if( iNewWp < 0 ) iNewWp = m_WayPoint.Size() - 1;
 		SetMoveCurWayPoint( iNewWp );
 	}
 
 	public void onClickNextWp( View v ){
-		int iNewWp = iCurWayPoint + 1;
-		if( iNewWp >= WayPoint.Size()) iNewWp = 0;
+		int iNewWp = m_iCurWayPoint + 1;
+		if( iNewWp >= m_WayPoint.Size()) iNewWp = 0;
 		SetMoveCurWayPoint( iNewWp );
 	}
 
@@ -268,7 +270,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	final void SetCurWayPoint( int iNewWp ){
 		if( mMap != null && Markers.size() != 0 ){
 			// 元 CurWP のアイコンを blue にする
-			Markers.get( iCurWayPoint ).setIcon(
+			Markers.get( m_iCurWayPoint ).setIcon(
 				BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_BLUE )
 			);
 
@@ -276,7 +278,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_RED )
 			);
 		}
-		iCurWayPoint = iNewWp;
+		m_iCurWayPoint = iNewWp;
 	}
 
 	final void SetMoveCurWayPoint( int iNewWp ){
@@ -300,7 +302,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	private static final int	KML_LINESTRING	= 1 << 1;
 	private static final int	KML_COORDINATES	= 1 << 2;
 
-	public boolean LoadKML( String strKmlFile ){
+	public boolean LoadKML( String strKmlFile, int iWayPoint ){
 		int		iState;
 		String	strTitle = null;
 		
@@ -317,7 +319,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 		XmlPullParser xpp = Xml.newPullParser();
 
-		WayPoint.Clear();	// WP 等のクリア
+		m_WayPoint.Clear();	// WP 等のクリア
 		iState = KML_NONE;
 
 		double[] Point = new double[ 6 ];
@@ -360,11 +362,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 							// 経由地
 							ParseCoordinate( str, Point );
 							if(
-								WayPoint.Size() == 0 ||
-								WayPoint.Distance( WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] ) >=
+								m_WayPoint.Size() == 0 ||
+								m_WayPoint.Distance( m_WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] ) >=
 								iMinDistance
 							){
-								WayPoint.Add( Point[ 0 ], Point[ 1 ] );
+								m_WayPoint.Add( Point[ 0 ], Point[ 1 ] );
 							}
 						}else if(( iState & KML_LINESTRING ) != 0 ){
 							// ルート
@@ -412,7 +414,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		try{ fsIn.close(); }catch( IOException e ){}
 
 		// 一応数チェック
-		if( WayPoint.Size() == 0 ){
+		if( m_WayPoint.Size() == 0 ){
 			Toast.makeText( this, R.string.text_InvalidKMLFormat, Toast.LENGTH_LONG ).show();
 			return false;
 		}
@@ -421,7 +423,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 		mMap.clear();
 		Markers.clear();
-		iCurWayPoint = 0;
+		m_iCurWayPoint = 0;
 		m_strKmlFile = strKmlFile;
 		
 		// タイトル設定
@@ -439,9 +441,9 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		}
 		
 		// WP を Map に追加
-		for( int i = 0; i < WayPoint.Size(); ++i ){
+		for( int i = 0; i < m_WayPoint.Size(); ++i ){
 			MarkerOptions MakerOpt = new MarkerOptions();
-			MakerOpt.position( WayPoint.GetPoint( i ));
+			MakerOpt.position( m_WayPoint.GetPoint( i ));
 			MakerOpt.title( String.format( "WP%d", i + 1 ));
 			MakerOpt.icon( BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_BLUE ));
 			//MakerOpt.snippet( location.toString());
@@ -455,7 +457,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		PolyLineOpt.width(( int )( 6 * fDipScale ));
 		mMap.addPolyline( PolyLineOpt );
 
-		SetCurWayPoint( 0 );
+		SetCurWayPoint( iWayPoint );
 		
 		// ルートが 180W をまたいでいたら，補正
 		if( Point[ 4 ] - Point[ 2 ] > 180 ){
@@ -512,11 +514,9 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 					WpNaviActivity.this, this, FileOpenDialog.MODE_FILE,
 					new FileFilter(){
 						public boolean accept( File pathname ){
-							return !pathname.getName().startsWith( "." ) && (
-								pathname.isDirectory() ||
+							return
 								pathname.getName().endsWith( ".kml" ) ||
-								pathname.getName().endsWith( ".xml" )
-							);
+								pathname.getName().endsWith( ".xml" );
 						}
 					}
 				);
@@ -539,7 +539,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 
 	public void onFileSelected( File file ){
-		LoadKML( file.getAbsolutePath());
+		LoadKML( file.getAbsolutePath(), 0 );
 	}
 
 	/*** GME URL intent ****************************************************/
@@ -631,7 +631,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 						File fileKml = new File( strKmlFile );
 						try{ fileKml.delete(); }catch( Exception e ){}
 						try{ ( new File( strTmpFile )).renameTo( fileKml ); }catch( Exception e ){}
-						LoadKML( strKmlFile );
+						LoadKML( strKmlFile, 0 );
 					}else{
 						// ダウンロードに失敗した場合
 						Toast.makeText( WpNaviActivity.this, R.string.text_DownloadFailed, Toast.LENGTH_LONG ).show();
@@ -676,7 +676,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				if( bDebug ) Log.d( "WpNavi", "Service stopped:" + m_bQuitService + ":" + iStatus );
 			}
 			m_bQuitService = false;
-			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + iCurWayPoint );
+			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + m_iCurWayPoint );
 		}
 
 		@Override
@@ -692,8 +692,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		Intent intent = new Intent( this, WpNaviService.class );
 
 		// 設定値を Service に設定
-		intent.putIntegerArrayListExtra( "WayPoint", WayPoint.Points );
-		mService.iCurWayPoint	= iCurWayPoint;
+		intent.putIntegerArrayListExtra( "WayPoint", m_WayPoint.Points );
+		mService.iCurWayPoint	= m_iCurWayPoint;
 		mService.iNextDistance	= Pref.getInt( "key_NextDistance", 50 );
 		mService.iWaitTime		= Pref.getInt( "key_WaitTime", 60 ) * 100;
 		mService.bKillByRoot	= Pref.getBoolean( "key_kill_by_root", false );
