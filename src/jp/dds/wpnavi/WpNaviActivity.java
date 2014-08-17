@@ -76,7 +76,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	private GoogleMap mMap;
 	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
 	
-	private LinearLayout layout_ad;	//広告表示用スペース
+	private LinearLayout layout_ad;	// 広告表示用スペース
 	private AdView adView;
 	private int	m_iMagicNum		= 0;
 
