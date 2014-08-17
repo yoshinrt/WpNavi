@@ -11,7 +11,7 @@
     <string name="text_Setting">Preference...</string>
     <string name="text_Activated">Navigating to WP%d</string>
     <string name="text_KMLNotLoaded">KML not loaded</string>
-    <string name="text_DownloadFailed">Can't download the KML file\nPlease check the sharing settings.</string>
+    <string name="text_DownloadFailed">Can\'t download the KML file\nPlease check the sharing settings.</string>
     <string name="text_NoGPS">GPS device not found</string>
     <string name="pref_next_distance">Waypoint range (radius)</string>
     <string name="pref_wait_time">Wait time of restarting navigation</string>
