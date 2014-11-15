@@ -5,7 +5,11 @@ import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import org.xmlpull.v1.XmlPullParser;
 
@@ -106,7 +110,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		GMEIntent( getIntent());
 		
 		// 広告
-		bEnableAds = Pref.getInt( "key_flag", 0 ) != 44298893;
+		bEnableAds = false; //Pref.getInt( "key_flag", 0 ) != 44298893;
 		if( bEnableAds ){
 			adView = new AdView( this );
 			adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
@@ -308,13 +312,40 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		
 		if( mMap == null || strKmlFile == null ) return false;
 
-		// KML を開く
-		FileInputStream fsIn;
-		try{
-			fsIn = new FileInputStream( strKmlFile );
-		}catch( FileNotFoundException e ){
-			//Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
-			return false;
+		ZipFile zfIn = null;
+		InputStream fsIn = null;
+		
+		try {
+			// KMZ を開いてみる
+			zfIn = new ZipFile( strKmlFile );
+			
+			for( Enumeration<? extends ZipEntry> enumulation = zfIn.entries(); enumulation.hasMoreElements();){
+				ZipEntry entry = enumulation.nextElement();
+				// System.out.println(entry.getName());
+				if( entry.isDirectory()) continue;
+				
+				if( bDebug ) Log.d( "WpNavi", "LoadKML:ZipEntry:" + entry.getName());
+				if( entry.getName().endsWith( ".kml" )){
+					fsIn = zfIn.getInputStream( entry );
+					break;
+				}
+			}
+			// kmz 中に kml がなかった
+			if( fsIn == null ){
+				zfIn.close();
+				Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
+				return false;
+			}
+		}catch( IOException e ){
+			// KMZ で失敗したので，KML を開く
+			if( zfIn != null ) try{ zfIn.close(); }catch( IOException e2 ){}
+			
+			try{
+				fsIn = new FileInputStream( strKmlFile );
+			}catch( FileNotFoundException e1 ){
+				Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
+				return false;
+			}
 		}
 
 		XmlPullParser xpp = Xml.newPullParser();
@@ -516,6 +547,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 						public boolean accept( File pathname ){
 							return
 								pathname.getName().endsWith( ".kml" ) ||
+								pathname.getName().endsWith( ".kmz" ) ||
 								pathname.getName().endsWith( ".xml" );
 						}
 					}
