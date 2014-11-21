@@ -110,7 +110,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		GMEIntent( getIntent());
 		
 		// 広告
-		bEnableAds = false; //Pref.getInt( "key_flag", 0 ) != 44298893;
+		bEnableAds = !bDebug && Pref.getInt( "key_flag", 0 ) != 44298893;
 		if( bEnableAds ){
 			adView = new AdView( this );
 			adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
