@@ -488,7 +488,10 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		PolyLineOpt.width(( int )( 6 * fDipScale ));
 		mMap.addPolyline( PolyLineOpt );
 
-		SetCurWayPoint( iWayPoint );
+		SetCurWayPoint(
+			iWayPoint >= 0 ? iWayPoint :
+			Pref.getBoolean( "key_ReverseOrder", false ) ? m_WayPoint.Size() - 1 : 0
+		);
 		
 		// ルートが 180W をまたいでいたら，補正
 		if( Point[ 4 ] - Point[ 2 ] > 180 ){
@@ -571,7 +574,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 
 	public void onFileSelected( File file ){
-		LoadKML( file.getAbsolutePath(), 0 );
+		LoadKML( file.getAbsolutePath(), -1 );
 	}
 
 	/*** GME URL intent ****************************************************/
@@ -663,7 +666,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 						File fileKml = new File( strKmlFile );
 						try{ fileKml.delete(); }catch( Exception e ){}
 						try{ ( new File( strTmpFile )).renameTo( fileKml ); }catch( Exception e ){}
-						LoadKML( strKmlFile, 0 );
+						LoadKML( strKmlFile, -1 );
 					}else{
 						// ダウンロードに失敗した場合
 						Toast.makeText( WpNaviActivity.this, R.string.text_DownloadFailed, Toast.LENGTH_LONG ).show();
@@ -729,6 +732,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		mService.iNextDistance	= Pref.getInt( "key_NextDistance", 50 );
 		mService.iWaitTime		= Pref.getInt( "key_WaitTime", 60 ) * 100;
 		mService.bKillByRoot	= Pref.getBoolean( "key_kill_by_root", false );
+		mService.bReverseOrder	= Pref.getBoolean( "key_ReverseOrder", false );
 
 		startService( intent );
 	}

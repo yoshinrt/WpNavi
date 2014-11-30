@@ -3,7 +3,7 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:robobunny="http://robobunny.com"
 >
-	<jp.dds.dds_lib.SeekBarPreference
+	<CheckBoxPreference android:title="@string/pref_ReverseOrder" android:key="key_ReverseOrder"/><jp.dds.dds_lib.SeekBarPreference
 		android:key="key_WaitTime"
 		android:dialogTitle="@string/pref_wait_time"
 		android:title="@string/pref_wait_time"
@@ -23,5 +23,6 @@
 	/>
 	<CheckBoxPreference android:key="key_traffic_info" android:title="@string/perf_TrafficInfo" />
 	<CheckBoxPreference android:key="key_kill_by_root" android:title="@string/pref_kill_by_root" android:summary="@string/pref_kill_by_root_exp"/>
+	
 			
 </PreferenceScreen>

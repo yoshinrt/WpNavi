@@ -18,4 +18,5 @@
     <string name="pref_kill_by_root">確実なナビ再起動</string>
     <string name="pref_kill_by_root_exp">root権限が必要</string>
     <string name="perf_TrafficInfo">渋滞情報を表示</string>
+    <string name="pref_ReverseOrder">逆順に案内</string>
 </resources>

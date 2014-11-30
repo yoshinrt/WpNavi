@@ -31,6 +31,7 @@ public class WpNaviService extends Service implements LocationListener{
 	int		iCurWayPoint	= 0;
 	int		iNextDistance	= 50;
 	int		iWaitTime		= 0;
+	boolean	bReverseOrder	= false;
 	boolean	bKillByRoot		= false;
 
 	private long		iRestartTime	= 0;
@@ -194,10 +195,14 @@ public class WpNaviService extends Service implements LocationListener{
 		if( !bRestartTest ){
 			// 経由地に近づいたらナビ起動
 			double dDistance = WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude());
-			if( dDistance <= iNextDistance && ++iCurWayPoint < WayPoint.Size()){
+			if( dDistance <= iNextDistance && (
+				bReverseOrder ?
+					--iCurWayPoint >= 0 :
+					++iCurWayPoint < WayPoint.Size()
+			)){
 				StartNavi();
 			}
-			if( iCurWayPoint == WayPoint.Size() - 1 ) StopNavi();
+			if( iCurWayPoint == ( bReverseOrder ? 0 : WayPoint.Size() - 1 )) StopNavi();
 		}else if( ++iCnt >= 15 ){
 			// テスト用，規定時間でナビ起動
 			iCnt = 0;

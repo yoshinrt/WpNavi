@@ -18,4 +18,5 @@
     <string name="pref_kill_by_root">Surely restarting navigation</string>
     <string name="pref_kill_by_root_exp">Requires ROOT privilege</string>
     <string name="perf_TrafficInfo">Show traffic information</string>
+    <string name="pref_ReverseOrder">Guide in reverse order</string>
 </resources>
