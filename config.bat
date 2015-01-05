@@ -12,8 +12,6 @@ $File = 'AndroidManifest.xml';
 
 $Debug = defined( $ARGV[ 0 ] ) && $ARGV[ 0 ] =~ /^d/;
 
-$Update = 0;
-
 # svn リビジョンを得る
 `LANG=C svn info -r HEAD` =~ /Revision:\s+(\d+)/;
 $Rev = $1;
@@ -32,10 +30,6 @@ $PrevRev = $1;
 
 # xml のビルド種別を得る
 $PrevDebug = /<!--IF_RELEASE--><!--/;
-
-
-$Update = 1 if(  );
-$Update = 1 if(  );
 
 if(
 	$ModCnt != 0 ||					# svn 更新された

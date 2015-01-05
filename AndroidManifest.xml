@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	package="jp.dds.wpnavi"
-	android:versionCode="74"
-	android:versionName="r74" >
+	android:versionCode="75"
+	android:versionName="r75" >
 
 	<uses-sdk
 		android:minSdkVersion="9"
@@ -37,17 +37,9 @@
 
 		<uses-library android:name="com.google.android.maps"/>
 		
-		<!--IF_DEBUG--><!--
 		<meta-data
 			android:name="com.google.android.maps.v2.API_KEY"
 			android:value="AIzaSxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-		--><!--END_DEBUG-->
-		
-		<!--IF_RELEASE-->
-		<meta-data
-			android:name="com.google.android.maps.v2.API_KEY"
-			android:value="AIzaSxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-		<!--END_RELEASE-->
 		
 		<meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
 
