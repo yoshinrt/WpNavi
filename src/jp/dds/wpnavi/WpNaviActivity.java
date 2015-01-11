@@ -66,7 +66,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 	static final boolean bDebug	= BuildConfig.DEBUG;
 	static boolean bEnableAds	= true;
-	private static final String m_strGMEUrl = "https://mapsengine.google.com/map";
+	private static final String m_strGMEUrl = "https://www.google.com/maps/d";
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
 
