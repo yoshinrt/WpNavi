@@ -46,7 +46,7 @@ public class Coordinate{
 	private static final double _e2	= ( _a * _a - _b * _b ) / ( _a * _a );
 	private static final double ToRAD = Math.PI / 180;
 
-	static final double Distance(
+	static final double DistancePow2(
 		double dLong0, double dLati0,
 		double dLong1, double dLati1
 	){
@@ -58,11 +58,11 @@ public class Coordinate{
 		double M	= _a * ( 1 - _e2 ) / Math.pow( W, 3 );
 		double N	= _a / W;
 
-		return	Math.sqrt( dy * dy * M * M + Math.pow( dx * N * Math.cos( uy ), 2 ));
+		return	dy * dy * M * M + Math.pow( dx * N * Math.cos( uy ), 2 );
 	}
 
-	final double Distance( int iIdx, double dLong0, double dLati0 ){
-		return Distance( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
+	final double DistancePow2( int iIdx, double dLong0, double dLati0 ){
+		return DistancePow2( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
 	}
 	
 	final void Swap( int i, int j ){

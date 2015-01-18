@@ -395,8 +395,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 							ParseCoordinate( str, Point );
 							if(
 								m_WayPoint.Size() == 0 ||
-								m_WayPoint.Distance( m_WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] ) >=
-								iMinDistance
+								m_WayPoint.DistancePow2( m_WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] ) >=
+								iMinDistance * iMinDistance
 							){
 								m_WayPoint.Add( Point[ 0 ], Point[ 1 ] );
 							}
@@ -473,24 +473,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		}
 		
 		// WP を PolyLine にそってソートする
-		// line:134.99936
-		// wp:  134.9993602
-		List<LatLng> LineList = PolyLineOpt.getPoints();
-		int iSortedIdx = 0;
-		
-		for( int i = 0; i < LineList.size() && iSortedIdx < m_WayPoint.Size() - 1; ++i ){
-			for( int j = iSortedIdx; j < m_WayPoint.Size(); ++j ){
-				if(
-					Math.abs( LineList.get( i ).latitude  - m_WayPoint.GetLat( j )) <= 0.00001 &&
-					Math.abs( LineList.get( i ).longitude - m_WayPoint.GetLng( j )) <= 0.00001
-				){
-					m_WayPoint.Swap( iSortedIdx, j );
-					if( bDebug ) Log.d( "WpNavi", "WpNavi::LoadKML::Sort " + j + "<=>" + iSortedIdx );
-					++iSortedIdx;
-					break;
-				}
-			}
-		}
+		SortWP( PolyLineOpt.getPoints());
 		
 		// WP を Map に追加
 		for( int i = 0; i < m_WayPoint.Size(); ++i ){
@@ -533,6 +516,26 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		);
 		
 		return true;
+	}
+	
+	private final void SortWP( List<LatLng> LineList ){
+		// WP を PolyLine にそってソートする
+		int iSortedIdx = 0;
+		
+		for( int i = 0; i < LineList.size() && iSortedIdx < m_WayPoint.Size() - 1; ++i ){
+			for( int j = iSortedIdx; j < m_WayPoint.Size(); ++j ){
+				
+				// line:134.99936
+				// wp:  134.9993602
+				// (0,0)-(0.00001N, 0.00001W) の距離約 1.5m
+				if( m_WayPoint.DistancePow2( j, LineList.get( i ).longitude, LineList.get( i ).latitude ) < ( 100 * 100 )){
+					m_WayPoint.Swap( iSortedIdx, j );
+					if( bDebug ) Log.d( "WpNavi", "WpNavi::LoadKML::Sort " + iSortedIdx + "<=>" + j );
+					++iSortedIdx;
+					break;
+				}
+			}
+		}
 	}
 	
 	void ParseCoordinate( String str, double Point[] ){

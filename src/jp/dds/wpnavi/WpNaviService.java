@@ -194,8 +194,8 @@ public class WpNaviService extends Service implements LocationListener{
 
 		if( !bRestartTest ){
 			// 経由地に近づいたらナビ起動
-			double dDistance = WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude());
-			if( dDistance <= iNextDistance && (
+			double dDistance = WayPoint.DistancePow2( iCurWayPoint, location.getLongitude(), location.getLatitude());
+			if( dDistance <= ( iNextDistance * iNextDistance ) && (
 				bReverseOrder ?
 					--iCurWayPoint >= 0 :
 					++iCurWayPoint < WayPoint.Size()
