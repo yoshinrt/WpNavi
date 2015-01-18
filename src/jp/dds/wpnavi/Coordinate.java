@@ -64,4 +64,16 @@ public class Coordinate{
 	final double Distance( int iIdx, double dLong0, double dLati0 ){
 		return Distance( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
 	}
+	
+	final void Swap( int i, int j ){
+		if( i == j ) return;
+		
+		Integer iLng = Points.get( i * 2 );
+		Integer iLat = Points.get( i * 2 + 1 );
+		
+		Points.set( i * 2,     Points.get( j * 2 ));
+		Points.set( i * 2 + 1, Points.get( j * 2 + 1 ));
+		Points.set( j * 2,     iLng );
+		Points.set( j * 2 + 1, iLat );
+	}
 }

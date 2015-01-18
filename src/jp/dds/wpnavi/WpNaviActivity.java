@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -469,6 +470,26 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			}
 		}else{
 			setTitle( R.string.app_name );
+		}
+		
+		// WP を PolyLine にそってソートする
+		// line:134.99936
+		// wp:  134.9993602
+		List<LatLng> LineList = PolyLineOpt.getPoints();
+		int iSortedIdx = 0;
+		
+		for( int i = 0; i < LineList.size() && iSortedIdx < m_WayPoint.Size() - 1; ++i ){
+			for( int j = iSortedIdx; j < m_WayPoint.Size(); ++j ){
+				if(
+					Math.abs( LineList.get( i ).latitude  - m_WayPoint.GetLat( j )) <= 0.00001 &&
+					Math.abs( LineList.get( i ).longitude - m_WayPoint.GetLng( j )) <= 0.00001
+				){
+					m_WayPoint.Swap( iSortedIdx, j );
+					if( bDebug ) Log.d( "WpNavi", "WpNavi::LoadKML::Sort " + j + "<=>" + iSortedIdx );
+					++iSortedIdx;
+					break;
+				}
+			}
 		}
 		
 		// WP を Map に追加
