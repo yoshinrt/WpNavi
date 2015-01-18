@@ -473,7 +473,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		}
 		
 		// WP を PolyLine にそってソートする
-		SortWP( PolyLineOpt.getPoints());
+		SortWp( PolyLineOpt.getPoints());
 		
 		// WP を Map に追加
 		for( int i = 0; i < m_WayPoint.Size(); ++i ){
@@ -518,24 +518,85 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		return true;
 	}
 	
-	private final void SortWP( List<LatLng> LineList ){
-		// WP を PolyLine にそってソートする
+	// WP を PolyLine にそってソートする
+	private final static int iOnlineDist = 5;
+	private final static int iOnlineDistPow2 = iOnlineDist * iOnlineDist;
+	private final void SortWp( List<LatLng> Line ){
+		
+		// 原点
+		double dLng0 = Line.get( 0 ).longitude;
+		double dLat0 = Line.get( 0 ).latitude;
+		
+		// 簡易 x,y 変換用のパラメータ
+		double dLng2Meter = Coordinate.Distance(
+			dLng0, dLat0, dLng0 + 1.0 / 3600, dLat0
+		) * 3600;
+		
+		double dLat2Meter = Coordinate.Distance(
+			dLng0, dLat0, dLng0, dLat0 + 1.0 / 3600
+		) * 3600;
+		
+		// WP を x,y 変換
+		int iWpX[] = new int[ m_WayPoint.Size()];
+		int iWpY[] = new int[ m_WayPoint.Size()];
+		
+		for( int i = 0; i < m_WayPoint.Size(); ++i ){
+			iWpX[ i ] = ( int )(( m_WayPoint.GetLng( i ) - dLng0 ) * dLng2Meter );
+			iWpY[ i ] = ( int )(( m_WayPoint.GetLat( i ) - dLat0 ) * dLat2Meter );
+		}
+		
+		int x0, y0;
+		int x1 = 0, y1 = 0;
 		int iSortedIdx = 0;
 		
-		for( int i = 0; i < LineList.size() && iSortedIdx < m_WayPoint.Size() - 1; ++i ){
-			for( int j = iSortedIdx; j < m_WayPoint.Size(); ++j ){
+		for( int iIdxLine = 0; iIdxLine < Line.size() - 1 && iSortedIdx < m_WayPoint.Size() - 1; ++iIdxLine ){
+			
+			x0 = x1; y0 = y1;
+			x1 = ( int )(( Line.get( iIdxLine + 1 ).longitude - dLng0 ) * dLng2Meter );
+			y1 = ( int )(( Line.get( iIdxLine + 1 ).latitude  - dLat0 ) * dLat2Meter );
+			
+			for( int iIdxWp = iSortedIdx; iIdxWp < m_WayPoint.Size(); ++iIdxWp ){
+				// L1-L0 と Wp-L0 がなす角が 90度以上なら，距離は L0～Wp となる
+				if(
+					( x1 - x0 ) * ( iWpX[ iIdxWp ] - x0 ) +
+					( y1 - y0 ) * ( iWpY[ iIdxWp ] - y0 ) <= 0
+				){
+					int x = x0 - iWpX[ iIdxWp ];
+					int y = y0 - iWpY[ iIdxWp ];
+					if( x * x + y * y <= iOnlineDistPow2 ){
+						if( bDebug ) Log.d( "WpNavi", String.format(
+							"WpSortP[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.sqrt( x * x + y * y )
+						));
+						Swap( iSortedIdx, iIdxWp, iWpX, iWpY );
+						++iSortedIdx;
+						break;
+					}
+				}
 				
-				// line:134.99936
-				// wp:  134.9993602
-				// (0,0)-(0.00001N, 0.00001W) の距離約 1.5m
-				if( m_WayPoint.DistancePow2( j, LineList.get( i ).longitude, LineList.get( i ).latitude ) < ( 100 * 100 )){
-					m_WayPoint.Swap( iSortedIdx, j );
-					if( bDebug ) Log.d( "WpNavi", "WpNavi::LoadKML::Sort " + iSortedIdx + "<=>" + j );
-					++iSortedIdx;
-					break;
+				// L1-L0 と Wp-L0 がなす角が 90度以下なら，距離は L0-L0 線分～Wp となる
+				else{
+					int a, b, x, y;
+					if(
+						( x = x0 - x1 ) * ( a = iWpX[ iIdxWp ] - x1 ) +
+						( y = y0 - y1 ) * ( b = iWpY[ iIdxWp ] - y1 ) >= 0 &&
+						Math.abs( x * b - y * a ) <= iOnlineDist * ( int )Math.sqrt( x * x + y * y )
+					){
+						if( bDebug ) Log.d( "WpNavi", String.format(
+							"WpSortL[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.abs( x * b - y * a ) / Math.sqrt( x * x + y * y )
+						));
+						Swap( iSortedIdx, iIdxWp, iWpX, iWpY );
+						++iSortedIdx;
+						break;
+					}
 				}
 			}
 		}
+	}
+	
+	private final void Swap( int i, int j, int iWpX[], int iWpY[] ){
+		m_WayPoint.Swap( i, j );
+		int x = iWpX[ i ]; iWpX[ i ] = iWpX[ j ]; iWpX[ j ] = x;
+		int y = iWpY[ i ]; iWpY[ i ] = iWpY[ j ]; iWpY[ j ] = y;
 	}
 	
 	void ParseCoordinate( String str, double Point[] ){

@@ -60,9 +60,20 @@ public class Coordinate{
 
 		return	dy * dy * M * M + Math.pow( dx * N * Math.cos( uy ), 2 );
 	}
-
+	
+	static final double Distance(
+		double dLong0, double dLati0,
+		double dLong1, double dLati1
+	){
+		return Math.sqrt( DistancePow2( dLong0, dLati0, dLong1, dLati1 ));
+	}
+	
 	final double DistancePow2( int iIdx, double dLong0, double dLati0 ){
 		return DistancePow2( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
+	}
+	
+	final double Distance( int iIdx, double dLong0, double dLati0 ){
+		return Distance( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
 	}
 	
 	final void Swap( int i, int j ){
