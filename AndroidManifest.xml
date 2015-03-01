@@ -57,7 +57,7 @@
 				<data
 					android:scheme="https"
 					android:host="www.google.com"
-					android:pathPrefix="/maps/d/edit"/>
+					android:pathPrefix="/maps/d/u/0/edit"/>
 			</intent-filter>
 		</activity>
 		<activity android:name=".WpNaviPreference"/>
