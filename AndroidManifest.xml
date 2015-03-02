@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	package="jp.dds.wpnavi"
-	android:versionCode="80"
-	android:versionName="r80" >
+	android:versionCode="82"
+	android:versionName="r82" >
 
 	<uses-sdk
 		android:minSdkVersion="9"
@@ -54,10 +54,9 @@
 				<action android:name="android.intent.action.VIEW" />
 				<category android:name="android.intent.category.DEFAULT" />
 				<category android:name="android.intent.category.BROWSABLE" />
-				<data
-					android:scheme="https"
-					android:host="www.google.com"
-					android:pathPrefix="/maps/d/u/0/edit"/>
+				<data android:scheme="https" android:host="www.google.com" android:pathPattern="/maps/.*/edit"/>
+				<data android:scheme="https" android:host="www.google.com" android:pathPattern="/maps/.*/.*/edit"/>
+				<data android:scheme="https" android:host="www.google.com" android:pathPattern="/maps/.*/.*/.*/edit"/>
 			</intent-filter>
 		</activity>
 		<activity android:name=".WpNaviPreference"/>
