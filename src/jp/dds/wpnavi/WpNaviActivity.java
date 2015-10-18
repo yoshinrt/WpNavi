@@ -563,7 +563,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				){
 					int x = x0 - iWpX[ iIdxWp ];
 					int y = y0 - iWpY[ iIdxWp ];
-					if( x * x + y * y <= iOnlineDistPow2 ){
+					if(
+						Math.abs( x ) <= iOnlineDistPow2 &&
+						Math.abs( y ) <= iOnlineDistPow2 &&
+						x * x + y * y <= iOnlineDistPow2
+					){
 						if( bDebug ) Log.d( "WpNavi", String.format(
 							"WpSortP[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.sqrt( x * x + y * y )
 						));
