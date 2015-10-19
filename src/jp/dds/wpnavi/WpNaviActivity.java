@@ -561,13 +561,17 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			
 			int x01 = x0 - x1;
 			int y01 = y0 - y1;
-			int xp0, yp0, xp1, yp1;
 			
 			for( int iIdxWp = iSortedIdx; iIdxWp < m_WayPoint.Size(); ++iIdxWp ){
+				int xp0 = iWpX[ iIdxWp ] - x0;
+				int yp0 = iWpY[ iIdxWp ] - y0;
+				int xp1 = iWpX[ iIdxWp ] - x1;
+				int yp1 = iWpY[ iIdxWp ] - y1;
+				
 				// 線分端点と 1000m 離れているので online 判定スキップ
 				if(
-					( Math.abs( xp0 = iWpX[ iIdxWp ] - x0 ) > iDistTh || Math.abs( yp0 = iWpY[ iIdxWp ] - y0 ) > iDistTh ) &&
-					( Math.abs( xp1 = iWpX[ iIdxWp ] - x1 ) > iDistTh || Math.abs( yp1 = iWpY[ iIdxWp ] - y1 ) > iDistTh )
+					( Math.abs( xp0 ) > iDistTh || Math.abs( yp0 ) > iDistTh ) &&
+					( Math.abs( xp1 ) > iDistTh || Math.abs( yp1 ) > iDistTh )
 				) continue;
 				
 				// L1<-L0 と Wp<-L0 がなす角が 90度以上なら，距離は L0～Wp となる
