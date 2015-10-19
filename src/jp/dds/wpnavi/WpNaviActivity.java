@@ -518,11 +518,15 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		return true;
 	}
 	
-	// WP を PolyLine にそってソートする
+	/*** WP を PolyLine にそってソートする **********************************/
+	
 	private final static int iOnlineDist = 5;
 	private final static int iOnlineDistPow2 = iOnlineDist * iOnlineDist;
+	
+	// ルート線分の端点からこれだけ離れている WP は online 判定から除外
+	private final static int iDistTh = 1000; // [m]
+	
 	private final void SortWp( List<LatLng> Line ){
-		
 		// 原点
 		double dLng0 = Line.get( 0 ).longitude;
 		double dLat0 = Line.get( 0 ).latitude;
@@ -555,21 +559,22 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			x1 = ( int )(( Line.get( iIdxLine + 1 ).longitude - dLng0 ) * dLng2Meter );
 			y1 = ( int )(( Line.get( iIdxLine + 1 ).latitude  - dLat0 ) * dLat2Meter );
 			
+			int x01 = x0 - x1;
+			int y01 = y0 - y1;
+			int xp0, yp0, xp1, yp1;
+			
 			for( int iIdxWp = iSortedIdx; iIdxWp < m_WayPoint.Size(); ++iIdxWp ){
-				// L1-L0 と Wp-L0 がなす角が 90度以上なら，距離は L0～Wp となる
+				// 線分端点と 1000m 離れているので online 判定スキップ
 				if(
-					( x1 - x0 ) * ( iWpX[ iIdxWp ] - x0 ) +
-					( y1 - y0 ) * ( iWpY[ iIdxWp ] - y0 ) <= 0
-				){
-					int x = x0 - iWpX[ iIdxWp ];
-					int y = y0 - iWpY[ iIdxWp ];
-					if(
-						Math.abs( x ) <= iOnlineDistPow2 &&
-						Math.abs( y ) <= iOnlineDistPow2 &&
-						x * x + y * y <= iOnlineDistPow2
-					){
+					( Math.abs( xp0 = iWpX[ iIdxWp ] - x0 ) > iDistTh || Math.abs( yp0 = iWpY[ iIdxWp ] - y0 ) > iDistTh ) &&
+					( Math.abs( xp1 = iWpX[ iIdxWp ] - x1 ) > iDistTh || Math.abs( yp1 = iWpY[ iIdxWp ] - y1 ) > iDistTh )
+				) continue;
+				
+				// L1<-L0 と Wp<-L0 がなす角が 90度以上なら，距離は L0～Wp となる
+				if( -x01 * xp0 - y01 * yp0 <= 0 ){
+					if( xp0 * xp0 + yp0 * yp0 <= iOnlineDistPow2 ){
 						if( bDebug ) Log.d( "WpNavi", String.format(
-							"WpSortP[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.sqrt( x * x + y * y )
+							"WpSortP[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.sqrt( xp0 * xp0 + yp0 * yp0 )
 						));
 						Swap( iSortedIdx, iIdxWp, iWpX, iWpY );
 						++iSortedIdx;
@@ -577,16 +582,14 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 					}
 				}
 				
-				// L1-L0 と Wp-L0 がなす角が 90度以下なら，距離は L0-L0 線分～Wp となる
+				// L0<-L1 と Wp<-L1 がなす角が 90度以下なら，距離は L1<-L0 線分～Wp となる
 				else{
-					int a, b, x, y;
 					if(
-						( x = x0 - x1 ) * ( a = iWpX[ iIdxWp ] - x1 ) +
-						( y = y0 - y1 ) * ( b = iWpY[ iIdxWp ] - y1 ) >= 0 &&
-						Math.abs( x * b - y * a ) <= iOnlineDist * ( int )Math.sqrt( x * x + y * y )
+						x01 * xp1 + y01 * yp1 >= 0 &&
+						Math.abs( x01 * yp1 - y01 * xp1 ) <= iOnlineDist * ( int )Math.sqrt( x01 * x01 + y01 * y01 )
 					){
 						if( bDebug ) Log.d( "WpNavi", String.format(
-							"WpSortL[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.abs( x * b - y * a ) / Math.sqrt( x * x + y * y )
+							"WpSortL[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.abs( x01 * yp1 - y01 * xp1 ) / Math.sqrt( x01 * x01 + y01 * y01 )
 						));
 						Swap( iSortedIdx, iIdxWp, iWpX, iWpY );
 						++iSortedIdx;
