@@ -158,16 +158,18 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	public void onWindowFocusChanged( boolean hasFocus ){
 		super.onWindowFocusChanged( hasFocus );
 		
-		TypedValue tv = new TypedValue();
-		if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
-		    mMap.setPadding( 0,
-		    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
-		    	0,
-		    	findViewById( R.id.buttonPrevWp ).getHeight()
-		    );
+		if( mMap != null ){
+			TypedValue tv = new TypedValue();
+			if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
+			    mMap.setPadding( 0,
+			    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
+			    	0,
+			    	findViewById( R.id.buttonPrevWp ).getHeight()
+			    );
+			}
+			
+			if( m_strKmlFile != null && m_WayPoint.Size() == 0 ) LoadKML( m_strKmlFile, m_iCurWayPoint );
 		}
-		
-		if( m_strKmlFile != null && m_WayPoint.Size() == 0 ) LoadKML( m_strKmlFile, m_iCurWayPoint );
 	}
 	
 	@Override
@@ -177,15 +179,18 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		super.onPause();
 		UnbindService();
 
-		// GMap カメラ位置保存
-		CameraPosition cam = mMap.getCameraPosition();
-
 		Editor ed = Pref.edit();
-		ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
-		ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
-		ed.putFloat( "key_gmap_zoom", cam.zoom );
-		ed.putInt( "key_waypoint", m_iCurWayPoint );
-		ed.putString( "key_kml_file", m_strKmlFile );
+		
+		// GMap カメラ位置保存
+		if( mMap != null ){
+			CameraPosition cam = mMap.getCameraPosition();
+	
+			ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
+			ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
+			ed.putFloat( "key_gmap_zoom", cam.zoom );
+			ed.putInt( "key_waypoint", m_iCurWayPoint );
+			ed.putString( "key_kml_file", m_strKmlFile );
+		}
 		
 		if( m_iMagicNum == 44298893 ){
 			ed.putInt( "key_flag", m_iMagicNum );
