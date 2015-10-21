@@ -666,10 +666,18 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 				return true;
 			}
 				
-			case R.id.itemSetting:
+			case R.id.itemSetting: {
 				Intent intent = new Intent( WpNaviActivity.this, WpNaviPreference.class );
 				startActivityForResult( intent, 0 );
 				return true;
+			}
+			
+			case R.id.itemHelp: {
+				Intent intent = new Intent( Intent.ACTION_VIEW,	Uri.parse( getString( R.string.URL_OnlineManual )));
+				intent.setFlags( Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
+				startActivity( intent );
+				return true;
+			}
 		}
 		return false;
 	}
