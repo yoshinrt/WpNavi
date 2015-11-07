@@ -903,7 +903,7 @@ public class WpNaviActivity extends ActionBarActivity
 		NetworkInfo Info = (( ConnectivityManager )getSystemService( CONNECTIVITY_SERVICE ))
 			.getActiveNetworkInfo();
 		
-		return false && Info != null && Info.isConnected();
+		return Info != null && Info.isConnected();
 	}
 	
 	// 電波なしナビモード開始・終了

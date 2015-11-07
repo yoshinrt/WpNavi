@@ -1,15 +1,22 @@
 package jp.dds.wpnavi;
 
 import java.io.DataOutputStream;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
@@ -18,7 +25,9 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
 
-public class WpNaviService extends Service implements LocationListener{
+public class WpNaviService extends Service
+	implements ConnectionCallbacks, OnConnectionFailedListener, LocationListener
+{
 	private static final boolean bDebug = WpNaviActivity.bDebug;
 	private static final boolean bRestartTest = false;
 
@@ -34,11 +43,12 @@ public class WpNaviService extends Service implements LocationListener{
 	boolean	bReverseOrder	= false;
 	boolean	bKillByRoot		= false;
 
-	private long		iRestartTime	= 0;
+	private long	iRestartTime	= 0;
 	private boolean	bRunning		= false;
 
-	private LocationManager		mLocationManager	= null;
 	private NotificationManager	notificationManager	= null;
+	
+	private GoogleApiClient m_GoogleApiClient	= null;
 
 	/*** サービスハンドラ ***************************************************/
 
@@ -51,7 +61,7 @@ public class WpNaviService extends Service implements LocationListener{
 
 	@Override
 	public int onStartCommand( Intent intent, int flags, int startId ){
-		if( GetLocationManager() == false ){
+		if( StartLocationUpdate() == false ){
 			// GPS 取得失敗
 			Toast.makeText( getApplicationContext(), R.string.text_NoGPS, Toast.LENGTH_LONG ).show();
 		}else{
@@ -72,7 +82,7 @@ public class WpNaviService extends Service implements LocationListener{
 	public void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "Service::onDestroy" );
 		CancelNotification();
-		RemoveLocationManager();
+		StopLocationUpdate();
 		bRunning = false;
 	}
 
@@ -142,55 +152,79 @@ public class WpNaviService extends Service implements LocationListener{
 	public void StopNavi(){
 		bRunning = false;
 		CancelNotification();
-		RemoveLocationManager();
+		StopLocationUpdate();
 		stopSelf();
 	}
 
 	/*** GPS ハンドラ ***********************************************************/
 
-	final boolean GetLocationManager(){
-		if( mLocationManager == null ){
-			// 位置情報取得
-			mLocationManager = ( LocationManager )getSystemService( Context.LOCATION_SERVICE );
-		}
-		
-		/*
-		// Criteriaオブジェクトを生成
-		Criteria criteria = new Criteria();
-		criteria.setAccuracy( Criteria.ACCURACY_FINE );
-		criteria.setPowerRequirement( Criteria.POWER_MEDIUM );
-		criteria.setBearingRequired( false );
-		criteria.setSpeedRequired( false );
-		criteria.setAltitudeRequired( false );
+	private static int iCnt = 0;
 
-		String provider = mLocationManager.getBestProvider( criteria, true );
-
-		// 取得したロケーションプロバイダを表示
-		if( bDebug ) Log.d( "WpNavi", "GPS provider:" + provider );
-		*/
-
-		// LocationListenerを登録
-		try{
-			mLocationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 1000, 0, this );
-		}catch( Exception e ){
+	// 電波なしナビモード開始・終了
+	boolean StartLocationUpdate(){
+		if( GooglePlayServicesUtil.isGooglePlayServicesAvailable( this ) != ConnectionResult.SUCCESS ){
 			return false;
 		}
 		
+		if( m_GoogleApiClient == null ){
+			m_GoogleApiClient = new GoogleApiClient.Builder( this )
+				.addConnectionCallbacks( this )
+				.addOnConnectionFailedListener( this )
+				.addApi( LocationServices.API )
+				.build();
+		}
+		
+		if( !m_GoogleApiClient.isConnected()) m_GoogleApiClient.connect();
+		
 		return true;
 	}
-
-	final void RemoveLocationManager(){
-		if( mLocationManager != null ){
-			mLocationManager.removeUpdates( this );
-			mLocationManager = null;
+	
+	// GPS 取得開始・終了
+	@SuppressWarnings("static-access")
+	void StartLocationUpdate2(){
+		LocationRequest LocationRequest = new LocationRequest();
+		
+		LocationRequest.setInterval( 1000 );
+		LocationRequest.setFastestInterval( 1000 );
+		LocationRequest.setPriority( LocationRequest.PRIORITY_HIGH_ACCURACY );
+		
+		LocationServices.FusedLocationApi.requestLocationUpdates(
+			m_GoogleApiClient, LocationRequest, this
+		);
+	}
+	
+	void StopLocationUpdate(){
+		if( m_GoogleApiClient != null ){
+			if( m_GoogleApiClient.isConnected()){
+				LocationServices.FusedLocationApi.removeLocationUpdates(
+					m_GoogleApiClient, this
+				);
+			}
+			m_GoogleApiClient.disconnect();
 		}
 	}
+	
+	public void onConnected( Bundle arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "Service::onConnected" );
+		StartLocationUpdate2();
+	}
 
-	private static int iCnt = 0;
-
+	public void onConnectionFailed( ConnectionResult arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "Service::onConnectionFailed" );
+	}
+	
+	public void onDisconnected(){
+		if( bDebug ) Log.d( "WpNavi", "Service::onDisconnected" );
+	}
+	
+	@Override
+	public void onConnectionSuspended( int arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "Service::onConnectionSuspended" );
+	}
+	
 	@Override
 	public void onLocationChanged( Location location ){
-		//if( bDebug ) Log.d( "WpNavi", "GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude());
+		if( bDebug ) Log.d( "WpNavi", "GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude());
 
 		if( !bRestartTest ){
 			// 経由地に近づいたらナビ起動
@@ -210,15 +244,6 @@ public class WpNaviService extends Service implements LocationListener{
 			if( iCurWayPoint == WayPoint.Size() - 1 ) StopNavi();
 		}
 	}
-
-	@Override
-	public void onProviderDisabled( String provider ){}
-
-	@Override
-	public void onProviderEnabled( String provider ){}
-
-	@Override
-	public void onStatusChanged( String provider, int status, Bundle extras ){}
 
 	/*** Notification *******************************************************/
 
