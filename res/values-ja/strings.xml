@@ -3,6 +3,7 @@
     <string name="app_name">Waypoint Navi</string>
     <string name="button_prevwp">&lt;&lt;前</string>
     <string name="button_start_navi">ナビ開始</string>
+    <string name="button_stop_navi">ナビ停止</string>
     <string name="button_nextwp">次&gt;&gt;</string>
     <string name="text_InvalidKMLFormat">不正なKMLフォーマットです</string>
     <string name="text_FileNotFound">ファイルが見つかりません</string>

@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name">Waypoint Navi</string>
     <string name="button_prevwp">&lt;&lt;Prev.</string>
-    <string name="button_start_navi">Start NAVI</string>
-    <string name="button_nextwp">Next&gt;&gt;</string>
+    <string name="button_start_navi">Start Navi</string>
+    <string name="button_stop_navi">Stop Navi</string><string name="button_nextwp">Next&gt;&gt;</string>
     <string name="text_InvalidKMLFormat">Invalid KML format</string>
     <string name="text_FileNotFound">File not found</string>
     <string name="text_OpenKML">Open a KML file</string>
@@ -21,4 +21,5 @@
     <string name="perf_TrafficInfo">Show traffic information</string>
     <string name="pref_ReverseOrder">Guide in reverse order</string>
     <string name="URL_OnlineManual">https://translate.google.co.jp/translate?hl=ja&amp;sl=ja&amp;tl=en&amp;u=https%3A%2F%2Fsites.google.com%2Fsite%2Fvsdforgps%2Fhome%2Fwaypoint-navi</string>
+    
 </resources>

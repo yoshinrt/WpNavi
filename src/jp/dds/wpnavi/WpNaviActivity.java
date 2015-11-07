@@ -15,6 +15,14 @@ import java.util.zip.ZipFile;
 import org.xmlpull.v1.XmlPullParser;
 
 import com.google.android.gms.ads.*;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.location.LocationClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
@@ -43,6 +51,9 @@ import android.content.SharedPreferences.Editor;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
+import android.location.Location;
+import android.net.NetworkInfo;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -59,31 +70,37 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import jp.dds.dds_lib.FileOpenDialog;
 
-public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.FileOpenDialogListener{
+public class WpNaviActivity extends ActionBarActivity
+	implements FileOpenDialog.FileOpenDialogListener, ConnectionCallbacks, OnConnectionFailedListener, LocationListener {
 
 	static final boolean bDebug	= BuildConfig.DEBUG;
-	static boolean bEnableAds	= true;
+	static boolean m_bEnableAds	= true;
 	private static final String m_strGMEUrl = "https://www.google.com/maps/d";
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
 
-	private int	m_iCurWayPoint		= 0;
-	private Coordinate	m_WayPoint	= new Coordinate();
-	private SharedPreferences Pref	= null;
-	private String	m_strKmlFile	= null;
-	private boolean m_bDownloading	= false;
-	private	boolean m_bQuitService	= false;
+	private int	m_iCurWayPoint			= 0;
+	private Coordinate	m_WayPoint		= new Coordinate();
+	private SharedPreferences m_Pref	= null;
+	private String	m_strKmlFile		= null;
+	private boolean m_bDownloading		= false;
+	private	boolean m_bQuitService		= false;
 
-	private GoogleMap mMap;
-	private ArrayList<Marker>	Markers = new ArrayList<Marker>();
+	private GoogleMap m_Map;
+	private ArrayList<Marker>	m_Markers = new ArrayList<Marker>();
 	
-	private LinearLayout layout_ad;	// 広告表示用スペース
-	private AdView adView;
+	private LinearLayout m_LayoutAd;	// 広告表示用スペース
+	private AdView m_adView;
 	private int	m_iMagicNum		= 0;
+	
+	// 無電波なのでルート探索できない時のナビ中
+	private boolean m_bNoSigNaviMode			= false;
+	private GoogleApiClient m_GoogleApiClient	= null;
 
 	/*** Activity management ************************************************/
 
@@ -94,7 +111,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		super.onCreate( savedInstanceState );
 		
 		// プリファレンス
-		Pref = PreferenceManager.getDefaultSharedPreferences( this );
+		m_Pref = PreferenceManager.getDefaultSharedPreferences( this );
 		
 		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB ){
 			getWindow().requestFeature( Window.FEATURE_ACTION_BAR_OVERLAY );
@@ -111,17 +128,17 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		GMEIntent( getIntent());
 		
 		// 広告
-		bEnableAds = !bDebug && Pref.getInt( "key_flag", 0 ) != 44298893;
-		if( bEnableAds ){
-			adView = new AdView( this );
-			adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
-			adView.setAdSize( AdSize.SMART_BANNER );
+		m_bEnableAds = !bDebug && m_Pref.getInt( "key_flag", 0 ) != 44298893;
+		if( m_bEnableAds ){
+			m_adView = new AdView( this );
+			m_adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
+			m_adView.setAdSize( AdSize.SMART_BANNER );
 			
-			layout_ad = ( LinearLayout )findViewById( R.id.LinearLayout1 );
-			layout_ad.addView( adView );
+			m_LayoutAd = ( LinearLayout )findViewById( R.id.LinearLayout1 );
+			m_LayoutAd.addView( m_adView );
 			
 			AdRequest adRequest = new AdRequest.Builder().build();
-			adView.loadAd( adRequest );
+			m_adView.loadAd( adRequest );
 		}
 		
 		RegisterBroadcastReceiver();
@@ -131,12 +148,12 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	protected void onResume(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onResume" );
 		super.onResume();
-		if( bEnableAds ) adView.resume();	// 広告
+		if( m_bEnableAds ) m_adView.resume();	// 広告
 		BindService();
 		
-		if( mMap != null ){
+		if( m_Map != null ){
 			// マーカークリックリスナー登録
-			mMap.setOnMarkerClickListener( new OnMarkerClickListener(){
+			m_Map.setOnMarkerClickListener( new OnMarkerClickListener(){
 				@Override
 				public boolean onMarkerClick( Marker marker ){
 					SetCurWayPoint( Integer.parseInt( marker.getTitle().toString().substring( 2 )) - 1 );
@@ -146,11 +163,13 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			});
 
 			// KML ロード
-			m_iCurWayPoint = Pref.getInt( "key_waypoint", 0 );
-			m_strKmlFile = Pref.getString( "key_kml_file", null );
+			m_iCurWayPoint = m_Pref.getInt( "key_waypoint", 0 );
+			m_strKmlFile = m_Pref.getString( "key_kml_file", null );
 			
 			// 渋滞情報
-			mMap.setTrafficEnabled( Pref.getBoolean( "key_traffic_info", false ));
+			m_Map.setTrafficEnabled( m_Pref.getBoolean( "key_traffic_info", false ));
+			
+			if( m_bNoSigNaviMode ) StartLocationUpdate();
 		}
 	}
 
@@ -158,10 +177,12 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	public void onWindowFocusChanged( boolean hasFocus ){
 		super.onWindowFocusChanged( hasFocus );
 		
-		if( mMap != null ){
+		StopNoSigNavi();
+		
+		if( m_Map != null ){
 			TypedValue tv = new TypedValue();
 			if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
-			    mMap.setPadding( 0,
+			    m_Map.setPadding( 0,
 			    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
 			    	0,
 			    	findViewById( R.id.buttonPrevWp ).getHeight()
@@ -175,15 +196,15 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	@Override
 	protected void onPause(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onPause" );
-		if( bEnableAds ) adView.pause();	// 広告
+		if( m_bEnableAds ) m_adView.pause();	// 広告
 		super.onPause();
 		UnbindService();
 
-		Editor ed = Pref.edit();
+		Editor ed = m_Pref.edit();
 		
 		// GMap カメラ位置保存
-		if( mMap != null ){
-			CameraPosition cam = mMap.getCameraPosition();
+		if( m_Map != null ){
+			CameraPosition cam = m_Map.getCameraPosition();
 	
 			ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 			ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
@@ -196,6 +217,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			ed.putInt( "key_flag", m_iMagicNum );
 		}
 		ed.commit();
+		
+		StopLocationUpdate();
 	}
 
 	public void onClickStartNavi( View v ){
@@ -203,9 +226,17 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			Toast.makeText( this, R.string.text_KMLNotLoaded, Toast.LENGTH_LONG ).show();
 			return;
 		}
-
-		// サービス開始
-		StartService();
+		
+		if( m_bNoSigNaviMode ){
+			// 電波なしナビモード終了
+			StopNoSigNavi();
+		}else if( IsNetworkAlive()){
+			// 電波が生きていたら，サービス開始
+			StartService();
+		}else{
+			// 電波なしナビモード開始
+			StartNoSigNavi();
+		}
 	}
 
 	public void onClickPrevWp( View v ){
@@ -229,7 +260,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	@Override
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
-		if( bEnableAds ) adView.destroy();	// 広告
+		if( m_bEnableAds ) m_adView.destroy();	// 広告
 		UnregisterBroadcastReceiver();
 		
 		super.onDestroy();
@@ -244,19 +275,19 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	
 	/*** Google Maps ********************************************************/
 
-	private void setUpMapIfNeeded(){	
+	private void setUpMapIfNeeded(){
 		// Do a null check to confirm that we have not already instantiated the map.
-		if( mMap == null ){
+		if( m_Map == null ){
 			// Try to obtain the map from the SupportMapFragment.
-			mMap = (( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getMap();
+			m_Map = (( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getMap();
 			// Check if we were successful in obtaining the map.
-			if( mMap != null ){
-				mMap.setMyLocationEnabled( true );
+			if( m_Map != null ){
+				m_Map.setMyLocationEnabled( true );
 
-				UiSettings ui = mMap.getUiSettings();
+				UiSettings ui = m_Map.getUiSettings();
 
 				// Keep the UI Settings state in sync with the checkboxes.
-				mMap.setMyLocationEnabled( true );
+				m_Map.setMyLocationEnabled( true );
 				
  				ui.setZoomControlsEnabled( true );
 				//mUiSettings.setCompassEnabled( true );
@@ -268,23 +299,23 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 				// Map 移動
 				CameraPosition cameraPos = new CameraPosition.Builder()
-					.target( new LatLng( Pref.getFloat( "key_gmap_lat", 0f ), Pref.getFloat( "key_gmap_lng", 0f )))
-					.zoom( Pref.getFloat( "key_gmap_zoom", 0 ))
+					.target( new LatLng( m_Pref.getFloat( "key_gmap_lat", 0f ), m_Pref.getFloat( "key_gmap_lng", 0f )))
+					.zoom( m_Pref.getFloat( "key_gmap_zoom", 0 ))
 					.bearing( 0 )
 					.build();
-				mMap.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
+				m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
 			}
 		}
 	}
 
 	final void SetCurWayPoint( int iNewWp ){
-		if( mMap != null && Markers.size() != 0 ){
+		if( m_Map != null && m_Markers.size() != 0 ){
 			// 元 CurWP のアイコンを blue にする
-			Markers.get( m_iCurWayPoint ).setIcon(
+			m_Markers.get( m_iCurWayPoint ).setIcon(
 				BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_BLUE )
 			);
 
-			Markers.get( iNewWp ).setIcon(
+			m_Markers.get( iNewWp ).setIcon(
 				BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_RED )
 			);
 		}
@@ -292,16 +323,16 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 	}
 
 	final void SetMoveCurWayPoint( int iNewWp ){
-		if( mMap != null && Markers.size() != 0 ){
+		if( m_Map != null && m_Markers.size() != 0 ){
 			SetCurWayPoint( iNewWp );
-			Markers.get( iNewWp ).showInfoWindow();
+			m_Markers.get( iNewWp ).showInfoWindow();
 
-			CameraPosition camOld = mMap.getCameraPosition();
+			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
-				.target( Markers.get( iNewWp ).getPosition())
+				.target( m_Markers.get( iNewWp ).getPosition())
 				.zoom( camOld.zoom )
 				.build();
-			mMap.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
 		}
 	}
 
@@ -316,7 +347,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		int		iState;
 		String	strTitle = null;
 		
-		if( mMap == null || strKmlFile == null ) return false;
+		if( m_Map == null || strKmlFile == null ) return false;
 
 		ZipFile zfIn = null;
 		InputStream fsIn = null;
@@ -364,7 +395,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		Point[ 4 ] = Point[ 5 ] = -1000;	// max Lng, Lat
 		
 		PolylineOptions PolyLineOpt = new PolylineOptions();
-		int iMinDistance = Pref.getInt( "key_NextDistance", 50 );
+		int iMinDistance = m_Pref.getInt( "key_NextDistance", 50 );
 
 		try{
 			xpp.setInput( fsIn, "UTF-8" );
@@ -458,8 +489,8 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 
 		// ここまで来たらロード成功
 
-		mMap.clear();
-		Markers.clear();
+		m_Map.clear();
+		m_Markers.clear();
 		m_iCurWayPoint = 0;
 		m_strKmlFile = strKmlFile;
 		
@@ -487,7 +518,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			MakerOpt.title( String.format( "WP%d", i + 1 ));
 			MakerOpt.icon( BitmapDescriptorFactory.defaultMarker( BitmapDescriptorFactory.HUE_BLUE ));
 			//MakerOpt.snippet( location.toString());
-			Markers.add( mMap.addMarker( MakerOpt ));
+			m_Markers.add( m_Map.addMarker( MakerOpt ));
 		}
 
 		float fDipScale = getApplicationContext().getResources().getDisplayMetrics().density;
@@ -495,11 +526,11 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		// Line を Map に追加
 		PolyLineOpt.color( 0xFF1166FF );
 		PolyLineOpt.width(( int )( 6 * fDipScale ));
-		mMap.addPolyline( PolyLineOpt );
+		m_Map.addPolyline( PolyLineOpt );
 
 		SetCurWayPoint(
 			iWayPoint >= 0 ? iWayPoint :
-			Pref.getBoolean( "key_ReverseOrder", false ) ? m_WayPoint.Size() - 1 : 0
+			m_Pref.getBoolean( "key_ReverseOrder", false ) ? m_WayPoint.Size() - 1 : 0
 		);
 		
 		// ルートが 180W をまたいでいたら，補正
@@ -510,7 +541,7 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		}
 		
 		// ルート全体に移動
-		mMap.animateCamera(
+		m_Map.animateCamera(
 			CameraUpdateFactory.newLatLngBounds(
 				LatLngBounds.builder()
 					.include( new LatLng( Point[ 5 ], Point[ 4 ] ))
@@ -838,10 +869,10 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 		// 設定値を Service に設定
 		intent.putIntegerArrayListExtra( "WayPoint", m_WayPoint.Points );
 		mService.iCurWayPoint	= m_iCurWayPoint;
-		mService.iNextDistance	= Pref.getInt( "key_NextDistance", 50 );
-		mService.iWaitTime		= Pref.getInt( "key_WaitTime", 60 ) * 100;
-		mService.bKillByRoot	= Pref.getBoolean( "key_kill_by_root", false );
-		mService.bReverseOrder	= Pref.getBoolean( "key_ReverseOrder", false );
+		mService.iNextDistance	= m_Pref.getInt( "key_NextDistance", 50 );
+		mService.iWaitTime		= m_Pref.getInt( "key_WaitTime", 60 ) * 100;
+		mService.bKillByRoot	= m_Pref.getBoolean( "key_kill_by_root", false );
+		mService.bReverseOrder	= m_Pref.getBoolean( "key_ReverseOrder", false );
 
 		startService( intent );
 	}
@@ -862,6 +893,117 @@ public class WpNaviActivity extends ActionBarActivity implements FileOpenDialog.
 			// コネクションの解除
 			unbindService( mConnection );
 			mIsBound = false;
+		}
+	}
+	
+	/*** 無電波モード *******************************************************/
+	
+	// 電波状態取得
+	private boolean IsNetworkAlive(){
+		NetworkInfo Info = (( ConnectivityManager )getSystemService( CONNECTIVITY_SERVICE ))
+			.getActiveNetworkInfo();
+		
+		return false && Info != null && Info.isConnected();
+	}
+	
+	// 電波なしナビモード開始・終了
+	void StartNoSigNavi(){
+		m_bNoSigNaviMode = true;
+		
+		if( m_GoogleApiClient == null ){
+			m_GoogleApiClient = new GoogleApiClient.Builder( this )
+				.addConnectionCallbacks( this )
+				.addOnConnectionFailedListener( this )
+				.addApi( LocationServices.API )
+				.build();
+		}
+		
+		if( !m_GoogleApiClient.isConnected()) m_GoogleApiClient.connect();
+		
+		Button btn = ( Button )findViewById( R.id.buttonStartNavi );
+		btn.setText(( String )getText( R.string.button_stop_navi ));
+	}
+	
+	void StopNoSigNavi(){
+		StopLocationUpdate();
+		if( m_GoogleApiClient != null ) m_GoogleApiClient.disconnect();
+		m_bNoSigNaviMode = false;
+		
+		if( m_Map != null ){
+			CameraPosition camOld = m_Map.getCameraPosition();
+			CameraPosition camNew = new CameraPosition.Builder()
+				.target( camOld.target )
+				.zoom( camOld.zoom )
+				.tilt( 0 )
+				.bearing( 0 )
+				.build();
+			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+		}
+		
+		Button btn = ( Button )findViewById( R.id.buttonStartNavi );
+		btn.setText(( String )getText( R.string.button_start_navi ));
+	}
+	
+	// GPS 取得開始・終了
+	void StartLocationUpdate(){
+		LocationRequest LocationRequest = new LocationRequest();
+		
+		LocationRequest.setInterval( 1000 );
+		LocationRequest.setFastestInterval( 1000 );
+		LocationRequest.setPriority( LocationRequest.PRIORITY_HIGH_ACCURACY );
+		
+		LocationServices.FusedLocationApi.requestLocationUpdates(
+			m_GoogleApiClient, LocationRequest, this
+		);
+	}
+	
+	void StopLocationUpdate(){
+		if( m_GoogleApiClient != null && m_GoogleApiClient.isConnected()){
+			LocationServices.FusedLocationApi.removeLocationUpdates(
+				m_GoogleApiClient, this
+			);
+		}
+	}
+	
+	public void onConnected( Bundle arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConnected" );
+		StartLocationUpdate();
+	}
+
+	public void onConnectionFailed( ConnectionResult arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConnectionFailed" );
+	}
+	
+	public void onDisconnected(){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDisconnected" );
+	}
+	
+	@Override
+	public void onConnectionSuspended( int arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConnectionSuspended" );
+	}
+	
+	// 一定時間ごとに電波チェック & 地図位置更新
+	public void onLocationChanged( Location location ){
+		if( bDebug ){
+			Log.d( "WpNavi", "WpNavi::onLocationChanged" + location.getLatitude() + "," + location.getLongitude());
+		}
+		
+		if( IsNetworkAlive()){
+			StopNoSigNavi();
+			StartService();
+			return;
+		}
+		
+		if( m_Map != null ){
+			CameraPosition camOld = m_Map.getCameraPosition();
+			CameraPosition camNew = new CameraPosition.Builder()
+				.target( new LatLng( location.getLatitude(), location.getLongitude()))
+				.zoom( camOld.zoom )
+				.tilt( 60 )
+				.bearing( location.getBearing())
+				.build();
+			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
 		}
 	}
 }
