@@ -309,12 +309,7 @@ public class WpNaviActivity extends ActionBarActivity
 			SetCurWayPoint( iNewWp );
 			m_Markers.get( iNewWp ).showInfoWindow();
 
-			CameraPosition camOld = m_Map.getCameraPosition();
-			CameraPosition camNew = new CameraPosition.Builder()
-				.target( m_Markers.get( iNewWp ).getPosition())
-				.zoom( camOld.zoom )
-				.build();
-			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+			m_Map.animateCamera( CameraUpdateFactory.newLatLng( m_Markers.get( iNewWp ).getPosition()));
 		}
 	}
 
@@ -810,7 +805,6 @@ public class WpNaviActivity extends ActionBarActivity
 
 	//取得したServiceの保存
 	private WpNaviService mService = null;
-	private boolean mIsBound;
 
 	private ServiceConnection mConnection = new ServiceConnection(){
 		@Override
@@ -870,14 +864,12 @@ public class WpNaviActivity extends ActionBarActivity
 		//サービスとの接続を確立する。明示的にServiceを指定
 		//( 特定のサービスを指定する必要がある。他のアプリケーションから知ることができない = ローカルサービス )
 		bindService( new Intent( this, WpNaviService.class ), mConnection, Context.BIND_AUTO_CREATE );
-		mIsBound = true;
 	}
 
 	final void UnbindService(){
-		if( mIsBound ){
+		if( mService != null ){
 			// コネクションの解除
 			unbindService( mConnection );
-			mIsBound = false;
 		}
 	}
 	
@@ -912,7 +904,7 @@ public class WpNaviActivity extends ActionBarActivity
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( new LatLng( location.getLatitude(), location.getLongitude()))
 				.zoom( camOld.zoom )
-				.tilt( 60 )
+				.tilt( 75 )
 				.bearing( location.getBearing())
 				.build();
 			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));

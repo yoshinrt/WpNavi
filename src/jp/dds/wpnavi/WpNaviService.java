@@ -40,7 +40,9 @@ public class WpNaviService extends Service
 	static final int STATUS_RESTART	= 2;
 	static final int STATUS_NOSIG	= 3;
 	
-	static final int MSG_UPDATE		= 0;
+	static final int MSG_UPDATE			= 0;
+	static final int MSG_ENTER_NOSIG	= 1;
+	static final int MSG_EXIT_NOSIG		= 2;
 	
 	private Coordinate	WayPoint;
 
@@ -55,9 +57,10 @@ public class WpNaviService extends Service
 
 	private NotificationManager	notificationManager	= null;
 	
-	private GoogleApiClient m_GoogleApiClient	= null;
-	public Handler	m_MsgHandler	= null;
-	public Location	m_Location		= null;
+	private	GoogleApiClient m_GoogleApiClient	= null;
+	public	Handler		m_MsgHandler			= null;
+	private	Message		mMsg					= new Message();
+	public	Location	m_Location				= null;
 
 	/*** サービスハンドラ ***************************************************/
 
@@ -88,6 +91,10 @@ public class WpNaviService extends Service
 				StartNavi();
 			}else{
 				m_iStatus = STATUS_NOSIG;
+				if( m_MsgHandler != null ){
+					mMsg.what	= MSG_ENTER_NOSIG;
+					m_MsgHandler.sendMessage( mMsg );
+				}
 				if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
 			}
 		}
@@ -271,9 +278,8 @@ public class WpNaviService extends Service
 			
 		}else if( m_iStatus == STATUS_NOSIG && m_MsgHandler != null ){
 			// 位置表示更新
-			Message Msg = new Message();
-			Msg.what	= MSG_UPDATE;
-			m_MsgHandler.sendMessage( Msg );
+			mMsg.what	= MSG_UPDATE;
+			m_MsgHandler.sendMessage( mMsg );
 		}
 		
 		if( iCurWayPoint == ( bReverseOrder ? 0 : WayPoint.Size() - 1 )) StopNavi();
