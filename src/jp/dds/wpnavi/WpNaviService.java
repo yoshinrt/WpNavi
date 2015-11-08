@@ -17,10 +17,14 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.location.Location;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
@@ -32,9 +36,12 @@ public class WpNaviService extends Service
 	private static final boolean bRestartTest = false;
 
 	static final int STATUS_IDLE	= 0;
-	static final int STATUS_NORMAL	= 1;
+	static final int STATUS_RUNNING	= 1;
 	static final int STATUS_RESTART	= 2;
-
+	static final int STATUS_NOSIG	= 3;
+	
+	static final int MSG_UPDATE		= 0;
+	
 	private Coordinate	WayPoint;
 
 	int		iCurWayPoint	= 0;
@@ -44,11 +51,13 @@ public class WpNaviService extends Service
 	boolean	bKillByRoot		= false;
 
 	private long	iRestartTime	= 0;
-	private boolean	bRunning		= false;
+	private int		m_iStatus		= STATUS_IDLE;
 
 	private NotificationManager	notificationManager	= null;
 	
 	private GoogleApiClient m_GoogleApiClient	= null;
+	public Handler	m_MsgHandler	= null;
+	public Location	m_Location		= null;
 
 	/*** サービスハンドラ ***************************************************/
 
@@ -61,7 +70,7 @@ public class WpNaviService extends Service
 
 	@Override
 	public int onStartCommand( Intent intent, int flags, int startId ){
-		if( StartLocationUpdate() == false ){
+		if( !StartLocationUpdate()){
 			// GPS 取得失敗
 			Toast.makeText( getApplicationContext(), R.string.text_NoGPS, Toast.LENGTH_LONG ).show();
 		}else{
@@ -73,7 +82,14 @@ public class WpNaviService extends Service
 					iCurWayPoint, WayPoint.Size()
 				)
 			);
-			StartNavi();
+			
+			if( IsNetworkAlive()){
+				// 電波があれば Google ナビ起動
+				StartNavi();
+			}else{
+				m_iStatus = STATUS_NOSIG;
+				if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
+			}
 		}
 		return START_NOT_STICKY;
 	}
@@ -83,7 +99,8 @@ public class WpNaviService extends Service
 		if( bDebug ) Log.d( "WpNavi", "Service::onDestroy" );
 		CancelNotification();
 		StopLocationUpdate();
-		bRunning = false;
+		m_iStatus = STATUS_IDLE;
+		if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
 	}
 
 	@Override
@@ -97,13 +114,14 @@ public class WpNaviService extends Service
 	public void onRebind( Intent intent ){
 		if( bDebug ) Log.d( "WpNavi", "Service::onRebind" );
 	}
+	*/
 
 	@Override
 	public boolean onUnbind( Intent intent ){
 		if( bDebug ) Log.d( "WpNavi", "Service::onUnbind" );
+		m_MsgHandler = null;
 		return false;
 	}
-	*/
 
     public class WpNaviServiceLocalBinder extends Binder{
         //サービスの取得
@@ -115,10 +133,10 @@ public class WpNaviService extends Service
 	int GetStatus(){
 		// サービス状態を返す
 		// ナビリスタートから 2秒以内は RESTART を返す
-		return
-			!bRunning ? STATUS_IDLE :
-			( System.currentTimeMillis() - iRestartTime ) < ( 2000 + iWaitTime ) ?
-			STATUS_RESTART : STATUS_NORMAL;
+		return (
+			m_iStatus == STATUS_RUNNING &&
+			( System.currentTimeMillis() - iRestartTime ) < ( 2000 + iWaitTime )
+		) ? STATUS_RESTART : m_iStatus;
 	}
 
     /*** ナビ起動 ***************************************************************/
@@ -129,7 +147,9 @@ public class WpNaviService extends Service
 			WayPoint.GetLat( iCurWayPoint )
 		);
 
-		bRunning = true;
+		m_iStatus = STATUS_RUNNING;
+		if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
+		
 		SetNotification();
 		iRestartTime = System.currentTimeMillis();
 
@@ -150,15 +170,14 @@ public class WpNaviService extends Service
 	}
 
 	public void StopNavi(){
-		bRunning = false;
+		m_iStatus = STATUS_IDLE;
+		if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
 		CancelNotification();
 		StopLocationUpdate();
 		stopSelf();
 	}
 
 	/*** GPS ハンドラ ***********************************************************/
-
-	private static int iCnt = 0;
 
 	// 電波なしナビモード開始・終了
 	boolean StartLocationUpdate(){
@@ -193,6 +212,11 @@ public class WpNaviService extends Service
 		);
 	}
 	
+	public void onConnected( Bundle arg0 ){
+		if( bDebug ) Log.d( "WpNavi", "Service::onConnected" );
+		StartLocationUpdate2();
+	}
+
 	void StopLocationUpdate(){
 		if( m_GoogleApiClient != null ){
 			if( m_GoogleApiClient.isConnected()){
@@ -204,11 +228,6 @@ public class WpNaviService extends Service
 		}
 	}
 	
-	public void onConnected( Bundle arg0 ){
-		if( bDebug ) Log.d( "WpNavi", "Service::onConnected" );
-		StartLocationUpdate2();
-	}
-
 	public void onConnectionFailed( ConnectionResult arg0 ){
 		if( bDebug ) Log.d( "WpNavi", "Service::onConnectionFailed" );
 	}
@@ -222,29 +241,53 @@ public class WpNaviService extends Service
 		if( bDebug ) Log.d( "WpNavi", "Service::onConnectionSuspended" );
 	}
 	
+	private static int iDebugNavStartCnt = 0;
+
 	@Override
 	public void onLocationChanged( Location location ){
 		if( bDebug ) Log.d( "WpNavi", "GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude());
-
-		if( !bRestartTest ){
-			// 経由地に近づいたらナビ起動
-			double dDistance = WayPoint.DistancePow2( iCurWayPoint, location.getLongitude(), location.getLatitude());
-			if( dDistance <= ( iNextDistance * iNextDistance ) && (
-				bReverseOrder ?
-					--iCurWayPoint >= 0 :
-					++iCurWayPoint < WayPoint.Size()
-			)){
-				StartNavi();
-			}
-			if( iCurWayPoint == ( bReverseOrder ? 0 : WayPoint.Size() - 1 )) StopNavi();
-		}else if( ++iCnt >= 15 ){
-			// テスト用，規定時間でナビ起動
-			iCnt = 0;
-			if( ++iCurWayPoint < WayPoint.Size()) StartNavi();
-			if( iCurWayPoint == WayPoint.Size() - 1 ) StopNavi();
+		
+		m_Location	= location;
+		
+		// 経由地に近づいたらナビ起動
+		boolean bStartNavi =
+			(
+				( bRestartTest && bDebug && ( iDebugNavStartCnt = ( iDebugNavStartCnt + 1 ) & 0xF ) == 0 ) ||
+				WayPoint.InDistance( iNextDistance, iCurWayPoint, location.getLongitude(), location.getLatitude())
+			) && (
+				bReverseOrder ? --iCurWayPoint >= 0 : ++iCurWayPoint < WayPoint.Size()
+			);
+		
+		if(( bStartNavi || m_iStatus == STATUS_NOSIG ) && IsNetworkAlive()){
+			StartNavi();
+			
+		}else if( bStartNavi && m_iStatus == STATUS_RUNNING ){
+			// STATUS_RUNNING で WP に到達した時に電波がない状態．
+			// Google ナビを閉じて WpNavi を前面に出す．
+			Intent intent = new Intent( Intent.ACTION_VIEW );
+			intent.setClassName( "jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity" );
+			intent.setFlags( Intent.FLAG_ACTIVITY_NEW_TASK );
+			startActivity( intent );
+			
+		}else if( m_iStatus == STATUS_NOSIG && m_MsgHandler != null ){
+			// 位置表示更新
+			Message Msg = new Message();
+			Msg.what	= MSG_UPDATE;
+			m_MsgHandler.sendMessage( Msg );
 		}
+		
+		if( iCurWayPoint == ( bReverseOrder ? 0 : WayPoint.Size() - 1 )) StopNavi();
 	}
-
+	
+	// 電波状態取得
+	private boolean IsNetworkAlive(){
+		NetworkInfo Info = (( ConnectivityManager )getSystemService( CONNECTIVITY_SERVICE ))
+			.getActiveNetworkInfo();
+		
+		return false && Info != null && Info.isConnected();
+		//return Info != null && Info.isConnected();
+	}
+	
 	/*** Notification *******************************************************/
 
 	void SetNotification(){

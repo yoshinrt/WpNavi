@@ -15,14 +15,6 @@ import java.util.zip.ZipFile;
 import org.xmlpull.v1.XmlPullParser;
 
 import com.google.android.gms.ads.*;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
-import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
-import com.google.android.gms.location.LocationClient;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
@@ -52,13 +44,13 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
-import android.net.NetworkInfo;
-import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
@@ -76,7 +68,7 @@ import android.widget.Toast;
 import jp.dds.dds_lib.FileOpenDialog;
 
 public class WpNaviActivity extends ActionBarActivity
-	implements FileOpenDialog.FileOpenDialogListener, ConnectionCallbacks, OnConnectionFailedListener, LocationListener {
+	implements FileOpenDialog.FileOpenDialogListener {
 
 	static final boolean bDebug	= BuildConfig.DEBUG;
 	static boolean m_bEnableAds	= true;
@@ -89,7 +81,6 @@ public class WpNaviActivity extends ActionBarActivity
 	private SharedPreferences m_Pref	= null;
 	private String	m_strKmlFile		= null;
 	private boolean m_bDownloading		= false;
-	private	boolean m_bQuitService		= false;
 
 	private GoogleMap m_Map;
 	private ArrayList<Marker>	m_Markers = new ArrayList<Marker>();
@@ -98,12 +89,9 @@ public class WpNaviActivity extends ActionBarActivity
 	private AdView m_adView;
 	private int	m_iMagicNum		= 0;
 	
-	// 無電波なのでルート探索できない時のナビ中
-	private boolean m_bNoSigNaviMode			= false;
-	private GoogleApiClient m_GoogleApiClient	= null;
-
 	/*** Activity management ************************************************/
 
+	@SuppressWarnings("unused")
 	@SuppressLint( "InlinedApi" )
 	public void onCreate( Bundle savedInstanceState ){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onCreate" );
@@ -168,16 +156,12 @@ public class WpNaviActivity extends ActionBarActivity
 			
 			// 渋滞情報
 			m_Map.setTrafficEnabled( m_Pref.getBoolean( "key_traffic_info", false ));
-			
-			if( m_bNoSigNaviMode ) StartLocationUpdate();
 		}
 	}
 
 	@Override 
 	public void onWindowFocusChanged( boolean hasFocus ){
 		super.onWindowFocusChanged( hasFocus );
-		
-		StopNoSigNavi();
 		
 		if( m_Map != null ){
 			TypedValue tv = new TypedValue();
@@ -205,7 +189,7 @@ public class WpNaviActivity extends ActionBarActivity
 		// GMap カメラ位置保存
 		if( m_Map != null ){
 			CameraPosition cam = m_Map.getCameraPosition();
-	
+			
 			ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 			ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
 			ed.putFloat( "key_gmap_zoom", cam.zoom );
@@ -217,8 +201,6 @@ public class WpNaviActivity extends ActionBarActivity
 			ed.putInt( "key_flag", m_iMagicNum );
 		}
 		ed.commit();
-		
-		StopLocationUpdate();
 	}
 
 	public void onClickStartNavi( View v ){
@@ -226,17 +208,7 @@ public class WpNaviActivity extends ActionBarActivity
 			Toast.makeText( this, R.string.text_KMLNotLoaded, Toast.LENGTH_LONG ).show();
 			return;
 		}
-		
-		if( m_bNoSigNaviMode ){
-			// 電波なしナビモード終了
-			StopNoSigNavi();
-		}else if( IsNetworkAlive()){
-			// 電波が生きていたら，サービス開始
-			StartService();
-		}else{
-			// 電波なしナビモード開始
-			StartNoSigNavi();
-		}
+		StartService();
 	}
 
 	public void onClickPrevWp( View v ){
@@ -257,9 +229,19 @@ public class WpNaviActivity extends ActionBarActivity
 		//finish();
 	}
 
+	/*
+	@Override
+	protected void onStop(){
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onStop" );
+		super.onStop();
+	}
+	*/
+	
 	@Override
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
+		
+		StopService();
 		if( m_bEnableAds ) m_adView.destroy();	// 広告
 		UnregisterBroadcastReceiver();
 		
@@ -431,8 +413,7 @@ public class WpNaviActivity extends ActionBarActivity
 							ParseCoordinate( str, Point );
 							if(
 								m_WayPoint.Size() == 0 ||
-								m_WayPoint.DistancePow2( m_WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] ) >=
-								iMinDistance * iMinDistance
+								!m_WayPoint.InDistance( iMinDistance, m_WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] )
 							){
 								m_WayPoint.Add( Point[ 0 ], Point[ 1 ] );
 							}
@@ -733,7 +714,6 @@ public class WpNaviActivity extends ActionBarActivity
 		// notification から呼ばれた
 		if( intent.getBooleanExtra( "quit_service", false )){
 			if( bDebug ) Log.d( "WpNavi", "GMEIntent:Killed by notification" );
-			m_bQuitService = true;
 			return true;
 		}
 		
@@ -845,12 +825,11 @@ public class WpNaviActivity extends ActionBarActivity
 			// サービスの WP 状態を取得，
 			// ナビをリスタートした直後でなければ StopService()
 			int iStatus = mService.GetStatus();
-			if( m_bQuitService || iStatus != WpNaviService.STATUS_RESTART ){
-				if( iStatus == WpNaviService.STATUS_NORMAL ) SetCurWayPoint( mService.iCurWayPoint );
+			if( iStatus == WpNaviService.STATUS_RUNNING ){
+				if( iStatus == WpNaviService.STATUS_RUNNING ) SetCurWayPoint( mService.iCurWayPoint );
 				mService.StopNavi();
-				if( bDebug ) Log.d( "WpNavi", "Service stopped:" + m_bQuitService + ":" + iStatus );
+				if( bDebug ) Log.d( "WpNavi", "Service stopped:" + iStatus );
 			}
-			m_bQuitService = false;
 			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + m_iCurWayPoint );
 		}
 
@@ -873,7 +852,13 @@ public class WpNaviActivity extends ActionBarActivity
 		mService.iWaitTime		= m_Pref.getInt( "key_WaitTime", 60 ) * 100;
 		mService.bKillByRoot	= m_Pref.getBoolean( "key_kill_by_root", false );
 		mService.bReverseOrder	= m_Pref.getBoolean( "key_ReverseOrder", false );
-
+		
+		mService.m_MsgHandler	= new Handler(){
+			public void handleMessage( Message Msg ){
+				OnLocationChanged( mService.m_Location );
+			}
+		};
+		
 		startService( intent );
 	}
 
@@ -898,37 +883,13 @@ public class WpNaviActivity extends ActionBarActivity
 	
 	/*** 無電波モード *******************************************************/
 	
-	// 電波状態取得
-	private boolean IsNetworkAlive(){
-		NetworkInfo Info = (( ConnectivityManager )getSystemService( CONNECTIVITY_SERVICE ))
-			.getActiveNetworkInfo();
-		
-		return Info != null && Info.isConnected();
-	}
-	
 	// 電波なしナビモード開始・終了
 	void StartNoSigNavi(){
-		m_bNoSigNaviMode = true;
-		
-		if( m_GoogleApiClient == null ){
-			m_GoogleApiClient = new GoogleApiClient.Builder( this )
-				.addConnectionCallbacks( this )
-				.addOnConnectionFailedListener( this )
-				.addApi( LocationServices.API )
-				.build();
-		}
-		
-		if( !m_GoogleApiClient.isConnected()) m_GoogleApiClient.connect();
-		
 		Button btn = ( Button )findViewById( R.id.buttonStartNavi );
 		btn.setText(( String )getText( R.string.button_stop_navi ));
 	}
 	
 	void StopNoSigNavi(){
-		StopLocationUpdate();
-		if( m_GoogleApiClient != null ) m_GoogleApiClient.disconnect();
-		m_bNoSigNaviMode = false;
-		
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
@@ -944,57 +905,8 @@ public class WpNaviActivity extends ActionBarActivity
 		btn.setText(( String )getText( R.string.button_start_navi ));
 	}
 	
-	// GPS 取得開始・終了
-	void StartLocationUpdate(){
-		LocationRequest LocationRequest = new LocationRequest();
-		
-		LocationRequest.setInterval( 1000 );
-		LocationRequest.setFastestInterval( 1000 );
-		LocationRequest.setPriority( LocationRequest.PRIORITY_HIGH_ACCURACY );
-		
-		LocationServices.FusedLocationApi.requestLocationUpdates(
-			m_GoogleApiClient, LocationRequest, this
-		);
-	}
-	
-	void StopLocationUpdate(){
-		if( m_GoogleApiClient != null && m_GoogleApiClient.isConnected()){
-			LocationServices.FusedLocationApi.removeLocationUpdates(
-				m_GoogleApiClient, this
-			);
-		}
-	}
-	
-	public void onConnected( Bundle arg0 ){
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConnected" );
-		StartLocationUpdate();
-	}
-
-	public void onConnectionFailed( ConnectionResult arg0 ){
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConnectionFailed" );
-	}
-	
-	public void onDisconnected(){
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDisconnected" );
-	}
-	
-	@Override
-	public void onConnectionSuspended( int arg0 ){
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::onConnectionSuspended" );
-	}
-	
 	// 一定時間ごとに電波チェック & 地図位置更新
-	public void onLocationChanged( Location location ){
-		if( bDebug ){
-			Log.d( "WpNavi", "WpNavi::onLocationChanged" + location.getLatitude() + "," + location.getLongitude());
-		}
-		
-		if( IsNetworkAlive()){
-			StopNoSigNavi();
-			StartService();
-			return;
-		}
-		
+	public void OnLocationChanged( Location location ){
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()

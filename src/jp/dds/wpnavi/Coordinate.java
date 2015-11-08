@@ -40,7 +40,7 @@ public class Coordinate{
 	final void Clear(){
 		Points.clear();
 	}
-
+	
 	private static final double _a	= 6378137.000;
 	private static final double _b	= 6356752.314245;
 	private static final double _e2	= ( _a * _a - _b * _b ) / ( _a * _a );
@@ -74,6 +74,27 @@ public class Coordinate{
 	
 	final double Distance( int iIdx, double dLong0, double dLati0 ){
 		return Distance( GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
+	}
+	
+	final boolean InDistance(
+		int iDistance,
+		double dLong0, double dLati0,
+		double dLong1, double dLati1
+	){
+		int iLatDist = ( int )( Math.abs( dLati0 - dLati1 ) * 110949.75926813729 );
+		if( iLatDist > iDistance ) return false;
+		
+		int iLngDist = ( int )( Math.abs( dLong0 - dLong1 ) * Math.cos( dLati0 * ( Math.PI / 180 )) * 111448.44724952266 );
+		if( iLngDist > iDistance ) return false;
+		
+		return iDistance * iDistance <= iLatDist * iLatDist + iLngDist * iLngDist;
+	}
+	
+	final boolean InDistance(
+		int iDistance, int iIdx,
+		double dLong0, double dLati0
+	){
+		return InDistance( iDistance, GetLng( iIdx ), GetLat( iIdx ), dLong0, dLati0 );
 	}
 	
 	final void Swap( int i, int j ){
