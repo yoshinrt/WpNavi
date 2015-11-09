@@ -81,6 +81,7 @@ public class WpNaviActivity extends ActionBarActivity
 	private SharedPreferences m_Pref	= null;
 	private String	m_strKmlFile		= null;
 	private boolean m_bDownloading		= false;
+	private	boolean m_bQuitService		= false;
 
 	private GoogleMap m_Map;
 	private ArrayList<Marker>	m_Markers = new ArrayList<Marker>();
@@ -241,7 +242,8 @@ public class WpNaviActivity extends ActionBarActivity
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
 		
-		StopService();
+		StopService();	// ★ STATUS_NOSIG の時は殺さないはず
+		
 		if( m_bEnableAds ) m_adView.destroy();	// 広告
 		UnregisterBroadcastReceiver();
 		
@@ -709,6 +711,7 @@ public class WpNaviActivity extends ActionBarActivity
 		// notification から呼ばれた
 		if( intent.getBooleanExtra( "quit_service", false )){
 			if( bDebug ) Log.d( "WpNavi", "GMEIntent:Killed by notification" );
+			m_bQuitService = true;
 			return true;
 		}
 		
@@ -815,15 +818,22 @@ public class WpNaviActivity extends ActionBarActivity
 
 			// サービスにはIBinder経由で#getService()してダイレクトにアクセス可能
 			mService = (( WpNaviService.WpNaviServiceLocalBinder )service ).getService();
-
-			// サービスの WP 状態を取得，
-			// ナビをリスタートした直後でなければ StopService()
-			int iStatus = mService.GetStatus();
-			if( iStatus == WpNaviService.STATUS_RUNNING ){
-				if( iStatus == WpNaviService.STATUS_RUNNING ) SetCurWayPoint( mService.iCurWayPoint );
+			
+			if( mService.GetStatus() != WpNaviService.STATUS_IDLE ){
+				SetCurWayPoint( mService.iCurWayPoint );
+			}
+			
+			// WpNavi 起動時に，以下の条件でサービスを止める
+			// ・m_bQuitService (Notification から kill された)
+			// ・STATUS_RUNNING (↑だけで，要らない気はする)
+			//
+			// STATUS_RESTART は，ナビリスタート時に Google ナビを kill すると
+			// WpNavi に一瞬返ってくるのでその対策．
+			if( m_bQuitService || mService.GetStatus() == WpNaviService.STATUS_RUNNING ){
 				mService.StopNavi();
 				if( bDebug ) Log.d( "WpNavi", "Service stopped:" + iStatus );
 			}
+			m_bQuitService = false;
 			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + m_iCurWayPoint );
 		}
 
@@ -849,7 +859,14 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		mService.m_MsgHandler	= new Handler(){
 			public void handleMessage( Message Msg ){
-				OnLocationChanged( mService.m_Location );
+				switch( Msg.what ){
+				  case WpNaviService.MSG_UPDATE:
+					OnLocationChanged( mService.m_Location );
+					break;
+					
+				  case WpNaviService.MSG_CHG_STATE:
+					OnStateChanged( Msg.arg1 );
+				}
 			}
 		};
 		
@@ -877,11 +894,15 @@ public class WpNaviActivity extends ActionBarActivity
 	
 	// 電波なしナビモード開始・終了
 	void StartNoSigNavi(){
+		getWindow().addFlags( WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON );
+		
 		Button btn = ( Button )findViewById( R.id.buttonStartNavi );
 		btn.setText(( String )getText( R.string.button_stop_navi ));
 	}
 	
 	void StopNoSigNavi(){
+		getWindow().clearFlags( WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON );
+		
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
@@ -898,7 +919,7 @@ public class WpNaviActivity extends ActionBarActivity
 	}
 	
 	// 一定時間ごとに電波チェック & 地図位置更新
-	public void OnLocationChanged( Location location ){
+	void OnLocationChanged( Location location ){
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
@@ -908,6 +929,15 @@ public class WpNaviActivity extends ActionBarActivity
 				.bearing( location.getBearing())
 				.build();
 			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+		}
+	}
+	
+	// サービスステート変更
+	void OnStateChanged( int iPrevState ){
+		if( mService.GetStatus() == WpNaviService.STATUS_NOSIG ){
+			StartNoSigNavi();
+		}else if( iPrevState == WpNaviService.STATUS_NOSIG ){
+			StopNoSigNavi();
 		}
 	}
 }

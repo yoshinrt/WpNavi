@@ -36,13 +36,12 @@ public class WpNaviService extends Service
 	private static final boolean bRestartTest = false;
 
 	static final int STATUS_IDLE	= 0;
-	static final int STATUS_RUNNING	= 1;
-	static final int STATUS_RESTART	= 2;
+	static final int STATUS_RESTART	= 1;
+	static final int STATUS_RUNNING	= 2;
 	static final int STATUS_NOSIG	= 3;
 	
-	static final int MSG_UPDATE			= 0;
-	static final int MSG_ENTER_NOSIG	= 1;
-	static final int MSG_EXIT_NOSIG		= 2;
+	static final int MSG_UPDATE		= 0;
+	static final int MSG_CHG_STATE	= 1;
 	
 	private Coordinate	WayPoint;
 
@@ -90,12 +89,12 @@ public class WpNaviService extends Service
 				// 電波があれば Google ナビ起動
 				StartNavi();
 			}else{
-				m_iStatus = STATUS_NOSIG;
+				SetStatus( STATUS_NOSIG );
+				
 				if( m_MsgHandler != null ){
 					mMsg.what	= MSG_ENTER_NOSIG;
 					m_MsgHandler.sendMessage( mMsg );
 				}
-				if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
 			}
 		}
 		return START_NOT_STICKY;
@@ -106,8 +105,7 @@ public class WpNaviService extends Service
 		if( bDebug ) Log.d( "WpNavi", "Service::onDestroy" );
 		CancelNotification();
 		StopLocationUpdate();
-		m_iStatus = STATUS_IDLE;
-		if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
+		SetStatus( STATUS_IDLE );
 	}
 
 	@Override
@@ -137,6 +135,18 @@ public class WpNaviService extends Service
         }
     }
 
+	void SetStatus( int iStatus ){
+		int iPrevStat = m_iStatus;
+		m_iStatus = iStatus;
+		if( bDebug ) Log.d( "WpNavi", "Service status " + iPrevStat + "->" + iStatus );
+		
+		if( m_MsgHandler != null && iPrevStat != iStatus ){
+			mMsg.what	= MSG_CHG_STATE;
+			mMsg.arg1	= iPrevStat;
+			m_MsgHandler.sendMessage( mMsg );
+		}
+	}
+	
 	int GetStatus(){
 		// サービス状態を返す
 		// ナビリスタートから 2秒以内は RESTART を返す
@@ -154,8 +164,7 @@ public class WpNaviService extends Service
 			WayPoint.GetLat( iCurWayPoint )
 		);
 
-		m_iStatus = STATUS_RUNNING;
-		if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
+		SetStatus( STATUS_RUNNING );
 		
 		SetNotification();
 		iRestartTime = System.currentTimeMillis();
@@ -177,8 +186,7 @@ public class WpNaviService extends Service
 	}
 
 	public void StopNavi(){
-		m_iStatus = STATUS_IDLE;
-		if( bDebug ) Log.d( "WpNavi", "Service status = " + m_iStatus );
+		SetStatus( STATUS_IDLE );
 		CancelNotification();
 		StopLocationUpdate();
 		stopSelf();
