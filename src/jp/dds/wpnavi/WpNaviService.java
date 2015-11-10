@@ -58,7 +58,7 @@ public class WpNaviService extends Service
 	
 	private	GoogleApiClient m_GoogleApiClient	= null;
 	public	Handler		m_MsgHandler			= null;
-	private	Message		mMsg					= new Message();
+	private	Message		Msg					= new Message();
 	public	Location	m_Location				= null;
 
 	/*** サービスハンドラ ***************************************************/
@@ -90,11 +90,6 @@ public class WpNaviService extends Service
 				StartNavi();
 			}else{
 				SetStatus( STATUS_NOSIG );
-				
-				if( m_MsgHandler != null ){
-					mMsg.what	= MSG_ENTER_NOSIG;
-					m_MsgHandler.sendMessage( mMsg );
-				}
 			}
 		}
 		return START_NOT_STICKY;
@@ -141,9 +136,10 @@ public class WpNaviService extends Service
 		if( bDebug ) Log.d( "WpNavi", "Service status " + iPrevStat + "->" + iStatus );
 		
 		if( m_MsgHandler != null && iPrevStat != iStatus ){
-			mMsg.what	= MSG_CHG_STATE;
-			mMsg.arg1	= iPrevStat;
-			m_MsgHandler.sendMessage( mMsg );
+			Message Msg = new Message();
+			Msg.what	= MSG_CHG_STATE;
+			Msg.arg1	= iPrevStat;
+			m_MsgHandler.dispatchMessage( Msg );
 		}
 	}
 	
@@ -260,7 +256,11 @@ public class WpNaviService extends Service
 
 	@Override
 	public void onLocationChanged( Location location ){
-		if( bDebug ) Log.d( "WpNavi", "GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude());
+		if( bDebug ) Log.d( "WpNavi",
+			"st:" + m_iStatus
+			+ " d:" + (( int )WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude()))
+			+ " GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude()
+		);
 		
 		m_Location	= location;
 		
@@ -279,6 +279,9 @@ public class WpNaviService extends Service
 		}else if( bStartNavi && m_iStatus == STATUS_RUNNING ){
 			// STATUS_RUNNING で WP に到達した時に電波がない状態．
 			// Google ナビを閉じて WpNavi を前面に出す．
+			SetStatus( STATUS_NOSIG );
+			CancelNotification();
+			
 			Intent intent = new Intent( Intent.ACTION_VIEW );
 			intent.setClassName( "jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity" );
 			intent.setFlags( Intent.FLAG_ACTIVITY_NEW_TASK );
@@ -286,8 +289,9 @@ public class WpNaviService extends Service
 			
 		}else if( m_iStatus == STATUS_NOSIG && m_MsgHandler != null ){
 			// 位置表示更新
-			mMsg.what	= MSG_UPDATE;
-			m_MsgHandler.sendMessage( mMsg );
+			Message Msg = new Message();
+			Msg.what	= MSG_UPDATE;
+			m_MsgHandler.sendMessage( Msg );
 		}
 		
 		if( iCurWayPoint == ( bReverseOrder ? 0 : WayPoint.Size() - 1 )) StopNavi();
@@ -298,8 +302,9 @@ public class WpNaviService extends Service
 		NetworkInfo Info = (( ConnectivityManager )getSystemService( CONNECTIVITY_SERVICE ))
 			.getActiveNetworkInfo();
 		
-		return false && Info != null && Info.isConnected();
+		//return false && Info != null && Info.isConnected();
 		//return Info != null && Info.isConnected();
+		return iCurWayPoint < 3;
 	}
 	
 	/*** Notification *******************************************************/

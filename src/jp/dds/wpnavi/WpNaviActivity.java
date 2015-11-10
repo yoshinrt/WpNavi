@@ -62,6 +62,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -216,10 +217,10 @@ public class WpNaviActivity extends ActionBarActivity
 			return;
 		}
 		
-		if( mService != null ) return;
+		if( mService == null ) return;
 		
 		if( mService.GetStatus() == WpNaviService.STATUS_NOSIG ){
-			StopService();
+			mService.StopNavi();
 			ExitNosigUI();
 		}else{
 			StartService();
@@ -919,7 +920,9 @@ public class WpNaviActivity extends ActionBarActivity
 		btn.setText(( String )getText( R.string.button_stop_navi ));
 		
 		if( m_Map != null ){
+			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
+				.target( camOld.target )
 				.zoom( m_iNosigZoom )
 				.tilt( 75 )
 				.build();
@@ -931,7 +934,10 @@ public class WpNaviActivity extends ActionBarActivity
 		getWindow().clearFlags( WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON );
 		
 		if( m_Map != null ){
+			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
+				.target( camOld.target )
+				.zoom( camOld.zoom )
 				.tilt( 0 )
 				.bearing( 0 )
 				.build();
@@ -945,8 +951,10 @@ public class WpNaviActivity extends ActionBarActivity
 	// 一定時間ごと地図位置更新
 	void OnLocationChanged( Location location ){
 		if( m_Map != null ){
+			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( new LatLng( location.getLatitude(), location.getLongitude()))
+				.zoom( camOld.zoom )
 				.tilt( 75 )
 				.bearing( location.getBearing())
 				.build();

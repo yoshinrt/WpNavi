@@ -87,7 +87,7 @@ public class Coordinate{
 		int iLngDist = ( int )( Math.abs( dLong0 - dLong1 ) * Math.cos( dLati0 * ( Math.PI / 180 )) * 111448.44724952266 );
 		if( iLngDist > iDistance ) return false;
 		
-		return iDistance * iDistance <= iLatDist * iLatDist + iLngDist * iLngDist;
+		return iDistance * iDistance >= iLatDist * iLatDist + iLngDist * iLngDist;
 	}
 	
 	final boolean InDistance(
