@@ -71,7 +71,7 @@ public class WpNaviActivity extends ActionBarActivity
 	implements FileOpenDialog.FileOpenDialogListener {
 
 	static final boolean bDebug	= BuildConfig.DEBUG;
-	static boolean m_bEnableAds	= true;
+	boolean m_bEnableAds	= true;
 	private static final String m_strGMEUrl = "https://www.google.com/maps/d";
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
@@ -82,6 +82,7 @@ public class WpNaviActivity extends ActionBarActivity
 	private String	m_strKmlFile		= null;
 	private boolean m_bDownloading		= false;
 	private	boolean m_bQuitService		= false;
+	private int m_iNosigZoom;
 
 	private GoogleMap m_Map;
 	private ArrayList<Marker>	m_Markers = new ArrayList<Marker>();
@@ -152,11 +153,14 @@ public class WpNaviActivity extends ActionBarActivity
 			});
 
 			// KML ロード
-			m_iCurWayPoint = m_Pref.getInt( "key_waypoint", 0 );
-			m_strKmlFile = m_Pref.getString( "key_kml_file", null );
+			m_iCurWayPoint	= m_Pref.getInt( "key_waypoint", 0 );
+			m_strKmlFile	= m_Pref.getString( "key_kml_file", null );
 			
 			// 渋滞情報
 			m_Map.setTrafficEnabled( m_Pref.getBoolean( "key_traffic_info", false ));
+			
+			// Nosig 時の zoom
+			m_iNosigZoom	= m_Pref.getInt( "key_nosig_zoom", 1 );
 		}
 	}
 
@@ -196,6 +200,7 @@ public class WpNaviActivity extends ActionBarActivity
 			ed.putFloat( "key_gmap_zoom", cam.zoom );
 			ed.putInt( "key_waypoint", m_iCurWayPoint );
 			ed.putString( "key_kml_file", m_strKmlFile );
+			ed.putInt( "key_nosig_zoom", m_iNosigZoom );
 		}
 		
 		if( m_iMagicNum == 44298893 ){
@@ -209,7 +214,15 @@ public class WpNaviActivity extends ActionBarActivity
 			Toast.makeText( this, R.string.text_KMLNotLoaded, Toast.LENGTH_LONG ).show();
 			return;
 		}
-		StartService();
+		
+		if( mService != null ) return;
+		
+		if( mService.GetStatus() == WpNaviService.STATUS_NOSIG ){
+			StopService();
+			ExitNosigUI();
+		}else{
+			StartService();
+		}
 	}
 
 	public void onClickPrevWp( View v ){
@@ -829,11 +842,16 @@ public class WpNaviActivity extends ActionBarActivity
 			//
 			// STATUS_RESTART は，ナビリスタート時に Google ナビを kill すると
 			// WpNavi に一瞬返ってくるのでその対策．
-			if( m_bQuitService || mService.GetStatus() == WpNaviService.STATUS_RUNNING ){
+			int iStatus = mService.GetStatus();
+			if( m_bQuitService || iStatus == WpNaviService.STATUS_RUNNING ){
 				mService.StopNavi();
 				if( bDebug ) Log.d( "WpNavi", "Service stopped:" + iStatus );
+				m_bQuitService = false;
+				
+			}else if( iStatus == WpNaviService.STATUS_NOSIG ){
+				EnterNosigUI();
 			}
-			m_bQuitService = false;
+			
 			if( bDebug ) Log.d( "WpNavi", "Service's stat=" + iStatus + " WP=" + m_iCurWayPoint );
 		}
 
@@ -893,21 +911,26 @@ public class WpNaviActivity extends ActionBarActivity
 	/*** 無電波モード *******************************************************/
 	
 	// 電波なしナビモード開始・終了
-	void StartNoSigNavi(){
+	void EnterNosigUI(){
 		getWindow().addFlags( WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON );
 		
 		Button btn = ( Button )findViewById( R.id.buttonStartNavi );
 		btn.setText(( String )getText( R.string.button_stop_navi ));
+		
+		if( m_Map != null ){
+			CameraPosition camNew = new CameraPosition.Builder()
+				.zoom( m_iNosigZoom )
+				.tilt( 75 )
+				.build();
+			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+		}
 	}
 	
-	void StopNoSigNavi(){
+	void ExitNosigUI(){
 		getWindow().clearFlags( WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON );
 		
 		if( m_Map != null ){
-			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
-				.target( camOld.target )
-				.zoom( camOld.zoom )
 				.tilt( 0 )
 				.bearing( 0 )
 				.build();
@@ -918,13 +941,11 @@ public class WpNaviActivity extends ActionBarActivity
 		btn.setText(( String )getText( R.string.button_start_navi ));
 	}
 	
-	// 一定時間ごとに電波チェック & 地図位置更新
+	// 一定時間ごと地図位置更新
 	void OnLocationChanged( Location location ){
 		if( m_Map != null ){
-			CameraPosition camOld = m_Map.getCameraPosition();
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( new LatLng( location.getLatitude(), location.getLongitude()))
-				.zoom( camOld.zoom )
 				.tilt( 75 )
 				.bearing( location.getBearing())
 				.build();
@@ -935,9 +956,9 @@ public class WpNaviActivity extends ActionBarActivity
 	// サービスステート変更
 	void OnStateChanged( int iPrevState ){
 		if( mService.GetStatus() == WpNaviService.STATUS_NOSIG ){
-			StartNoSigNavi();
+			EnterNosigUI();
 		}else if( iPrevState == WpNaviService.STATUS_NOSIG ){
-			StopNoSigNavi();
+			ExitNosigUI();
 		}
 	}
 }
