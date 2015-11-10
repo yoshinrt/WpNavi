@@ -115,7 +115,7 @@ public class WpNaviActivity extends ActionBarActivity
 		}
 		
 		setUpMapIfNeeded();
-		GMEIntent( getIntent());
+		DoIntent( getIntent());
 		
 		// 広告
 		m_bEnableAds = !bDebug && m_Pref.getInt( "key_flag", 0 ) != 44298893;
@@ -200,8 +200,9 @@ public class WpNaviActivity extends ActionBarActivity
 			ed.putFloat( "key_gmap_zoom", cam.zoom );
 			ed.putInt( "key_waypoint", m_iCurWayPoint );
 			ed.putString( "key_kml_file", m_strKmlFile );
-			ed.putInt( "key_nosig_zoom", m_iNosigZoom );
 		}
+		
+		ed.putInt( "key_nosig_zoom", m_iNosigZoom );
 		
 		if( m_iMagicNum == 44298893 ){
 			ed.putInt( "key_flag", m_iMagicNum );
@@ -714,16 +715,16 @@ public class WpNaviActivity extends ActionBarActivity
 	protected void onNewIntent( Intent intent ){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onNewIntent" );
 		super.onNewIntent( intent );
-		GMEIntent( intent );
+		DoIntent( intent );
 	}
 
-	final boolean GMEIntent( Intent intent ){
+	final boolean DoIntent( Intent intent ){
 		if( intent == null ) return false;
-		if( bDebug ) Log.d( "WpNavi", "GMEIntent:Action:" + intent.getAction());
+		if( bDebug ) Log.d( "WpNavi", "DoIntent:Action:" + intent.getAction());
 		
 		// notification から呼ばれた
 		if( intent.getBooleanExtra( "quit_service", false )){
-			if( bDebug ) Log.d( "WpNavi", "GMEIntent:Killed by notification" );
+			if( bDebug ) Log.d( "WpNavi", "DoIntent:Killed by notification" );
 			m_bQuitService = true;
 			return true;
 		}
@@ -743,17 +744,17 @@ public class WpNaviActivity extends ActionBarActivity
 			( new File( strDstFile )).delete();
 		}catch( Exception e ){}
 		
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strUrl );
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::DoIntent:editUrl:" + strUrl );
 
 		// mid を取得
 		String strMid = strUrl.replaceFirst( ".*mid=", "" ).replaceFirst( "&.*", "" );
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:editUrl:" + strMid );
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::DoIntent:editUrl:" + strMid );
 		
 		Uri.Builder uriBuilder = Uri.parse( m_strGMEUrl + "/kml" ).buildUpon();
 		uriBuilder.appendQueryParameter( "authuser", "0" );
 		uriBuilder.appendQueryParameter( "mid", strMid );
 
-		if( bDebug ) Log.d( "WpNavi", "WpNavi::GMEIntent:kmlUrl:" + uriBuilder );
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::DoIntent:kmlUrl:" + uriBuilder );
 		
 		Request request = new Request( uriBuilder.build());
 		request.setDestinationInExternalFilesDir( WpNaviActivity.this, Environment.DIRECTORY_DOWNLOADS, m_strDownloadKmlNameTmp );
