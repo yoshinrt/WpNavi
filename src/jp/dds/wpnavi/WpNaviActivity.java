@@ -83,8 +83,8 @@ public class WpNaviActivity extends ActionBarActivity
 	private String	m_strKmlFile		= null;
 	private boolean m_bDownloading		= false;
 	private	boolean m_bQuitService		= false;
-	private int m_iZoom;
-	private int m_iNosigZoom;
+	private float m_fZoom;
+	private float m_fNosigZoom;
 
 	private GoogleMap m_Map;
 	private ArrayList<Marker>	m_Markers = new ArrayList<Marker>();
@@ -137,8 +137,8 @@ public class WpNaviActivity extends ActionBarActivity
 		// 設定ロード
 		m_iCurWayPoint	= m_Pref.getInt( "key_waypoint", 0 );
 		m_strKmlFile	= m_Pref.getString( "key_kml_file", null );
-		m_iZoom			= m_Pref.getInt( "key_gmap_zoom", 1 );
-		m_iNosigZoom	= m_Pref.getInt( "key_nosig_zoom", 1 );
+		m_fZoom			= m_Pref.getFloat( "key_gmap_zoom", 1 );
+		m_fNosigZoom	= m_Pref.getFloat( "key_nosig_zoom", 1 );
 	}
 
 	@Override
@@ -164,9 +164,8 @@ public class WpNaviActivity extends ActionBarActivity
 		super.onPause();
 		
 		// サービス停止
-		int iStatus = mService.GetStatus();
+		int iStatus = mService != null ? mService.GetStatus() : WpNaviService.STATUS_IDLE;
 		UnbindService();
-		if( iStatus != STATUS_NOSIG ) StopService();
 		
 		Editor ed = m_Pref.edit();
 		
@@ -174,18 +173,16 @@ public class WpNaviActivity extends ActionBarActivity
 		if( m_Map != null ){
 			CameraPosition cam = m_Map.getCameraPosition();
 			
-			if( iStatus == STATUS_NOSIG ){
-				m_iNosigZoom = cam.zoom;
-			}else{
-				m_iZoom = cam.zoom;
+			if( iStatus != WpNaviService.STATUS_NOSIG ){
+				m_fZoom = cam.zoom;
 			}
 			
 			ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 			ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
-			ed.putFloat( "key_gmap_zoom", m_iZoom );
+			ed.putFloat( "key_gmap_zoom", m_fZoom );
 			ed.putInt( "key_waypoint", m_iCurWayPoint );
 			ed.putString( "key_kml_file", m_strKmlFile );
-			ed.putInt( "key_nosig_zoom", m_iNosigZoom );
+			ed.putFloat( "key_nosig_zoom", m_fNosigZoom );
 		}
 		
 		if( m_iMagicNum == 44298893 ){
@@ -204,7 +201,6 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		if( mService.GetStatus() == WpNaviService.STATUS_NOSIG ){
 			mService.StopNavi();
-			ExitNosigUI();
 		}else{
 			StartService();
 		}
@@ -239,6 +235,8 @@ public class WpNaviActivity extends ActionBarActivity
 	@Override
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
+		
+		StopService();
 		
 		if( m_bEnableAds ) m_adView.destroy();	// 広告
 		UnregisterBroadcastReceiver();
@@ -284,7 +282,7 @@ public class WpNaviActivity extends ActionBarActivity
 		// Map 移動
 		CameraPosition cameraPos = new CameraPosition.Builder()
 			.target( new LatLng( m_Pref.getFloat( "key_gmap_lat", 0f ), m_Pref.getFloat( "key_gmap_lng", 0f )))
-			.zoom( m_iZoom )
+			.zoom( m_fZoom )
 			.bearing( 0 )
 			.build();
 		m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
@@ -841,6 +839,23 @@ public class WpNaviActivity extends ActionBarActivity
 				SetCurWayPoint( mService.iCurWayPoint );
 			}
 			
+			// メッセージハンドラ
+			mService.m_MsgHandler	= new Handler(){
+				public void handleMessage( Message Msg ){
+					if( mService != null ) switch( Msg.what ){
+					  case WpNaviService.MSG_UPDATE_WP:
+						SetCurWayPoint( mService.iCurWayPoint );
+						
+					  case WpNaviService.MSG_UPDATE:
+						OnLocationChanged( mService.m_Location );
+						break;
+						
+					  case WpNaviService.MSG_CHG_STATE:
+						OnStateChanged( Msg.arg1 );
+					}
+				}
+			};
+			
 			// WpNavi 起動時に，以下の条件でサービスを止める
 			// ・m_bQuitService (Notification から kill された)
 			// ・STATUS_RUNNING (↑だけで，要らない気はする)
@@ -880,19 +895,6 @@ public class WpNaviActivity extends ActionBarActivity
 		mService.bKillByRoot	= m_Pref.getBoolean( "key_kill_by_root", false );
 		mService.bReverseOrder	= m_Pref.getBoolean( "key_ReverseOrder", false );
 		
-		mService.m_MsgHandler	= new Handler(){
-			public void handleMessage( Message Msg ){
-				switch( Msg.what ){
-				  case WpNaviService.MSG_UPDATE:
-					OnLocationChanged( mService.m_Location );
-					break;
-					
-				  case WpNaviService.MSG_CHG_STATE:
-					OnStateChanged( Msg.arg1 );
-				}
-			}
-		};
-		
 		startService( intent );
 	}
 
@@ -925,15 +927,17 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
-			m_iZoom = camOld.zoom;
+			m_fZoom = camOld.zoom;
 			
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( camOld.target )
-				.zoom( m_iNosigZoom )
+				.zoom( m_fNosigZoom )
 				.tilt( 75 )
 				.build();
-			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+			m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( camNew ));
 		}
+		
+		if( bDebug ) Log.d( "WpNavi", "EnterNosigUI::z:" + m_fZoom + " nz:" + m_fNosigZoom );
 	}
 	
 	void ExitNosigUI(){
@@ -941,16 +945,17 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
-			m_iNosigZoom = camOld.zoom;
 			
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( camOld.target )
-				.zoom( m_iZoom )
+				.zoom( m_fZoom )
 				.tilt( 0 )
 				.bearing( 0 )
 				.build();
-			m_Map.animateCamera( CameraUpdateFactory.newCameraPosition( camNew ));
+			m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( camNew ));
 		}
+		
+		if( bDebug ) Log.d( "WpNavi", "ExitNosigUI::z:" + m_fZoom + " nz:" + m_fNosigZoom );
 		
 		Button btn = ( Button )findViewById( R.id.buttonStartNavi );
 		btn.setText(( String )getText( R.string.button_start_navi ));
@@ -960,6 +965,9 @@ public class WpNaviActivity extends ActionBarActivity
 	void OnLocationChanged( Location location ){
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
+			
+			m_fNosigZoom = camOld.zoom;
+			
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( new LatLng( location.getLatitude(), location.getLongitude()))
 				.zoom( camOld.zoom )
@@ -972,6 +980,8 @@ public class WpNaviActivity extends ActionBarActivity
 	
 	// サービスステート変更
 	void OnStateChanged( int iPrevState ){
+		if( mService == null ) return;
+		
 		if( mService.GetStatus() == WpNaviService.STATUS_NOSIG ){
 			EnterNosigUI();
 		}else if( iPrevState == WpNaviService.STATUS_NOSIG ){

@@ -41,7 +41,8 @@ public class WpNaviService extends Service
 	static final int STATUS_NOSIG	= 3;
 	
 	static final int MSG_UPDATE		= 0;
-	static final int MSG_CHG_STATE	= 1;
+	static final int MSG_UPDATE_WP	= 1;
+	static final int MSG_CHG_STATE	= 2;
 	
 	private Coordinate	WayPoint;
 
@@ -139,7 +140,7 @@ public class WpNaviService extends Service
 			Message Msg = new Message();
 			Msg.what	= MSG_CHG_STATE;
 			Msg.arg1	= iPrevStat;
-			m_MsgHandler.dispatchMessage( Msg );
+			m_MsgHandler.sendMessage( Msg );
 		}
 	}
 	
@@ -290,7 +291,7 @@ public class WpNaviService extends Service
 		}else if( m_iStatus == STATUS_NOSIG && m_MsgHandler != null ){
 			// 位置表示更新
 			Message Msg = new Message();
-			Msg.what	= MSG_UPDATE;
+			Msg.what	= bStartNavi ? MSG_UPDATE_WP : MSG_UPDATE;
 			m_MsgHandler.sendMessage( Msg );
 		}
 		
@@ -302,9 +303,9 @@ public class WpNaviService extends Service
 		NetworkInfo Info = (( ConnectivityManager )getSystemService( CONNECTIVITY_SERVICE ))
 			.getActiveNetworkInfo();
 		
+		return Info != null && Info.isConnected();
 		//return false && Info != null && Info.isConnected();
-		//return Info != null && Info.isConnected();
-		return iCurWayPoint < 3;
+		//return iCurWayPoint < 3;
 	}
 	
 	/*** Notification *******************************************************/
