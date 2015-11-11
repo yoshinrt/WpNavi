@@ -83,6 +83,7 @@ public class WpNaviActivity extends ActionBarActivity
 	private String	m_strKmlFile		= null;
 	private boolean m_bDownloading		= false;
 	private	boolean m_bQuitService		= false;
+	private int m_iZoom;
 	private int m_iNosigZoom;
 
 	private GoogleMap m_Map;
@@ -133,6 +134,12 @@ public class WpNaviActivity extends ActionBarActivity
 		}
 		
 		RegisterBroadcastReceiver();
+		
+		// 設定ロード
+		m_iCurWayPoint	= m_Pref.getInt( "key_waypoint", 0 );
+		m_strKmlFile	= m_Pref.getString( "key_kml_file", null );
+		m_iZoom			= m_Pref.getInt( "key_gmap_zoom", 1 );
+		m_iNosigZoom	= m_Pref.getInt( "key_nosig_zoom", 1 );
 	}
 
 	@Override
@@ -141,20 +148,13 @@ public class WpNaviActivity extends ActionBarActivity
 		super.onResume();
 		if( m_bEnableAds ) m_adView.resume();	// 広告
 		BindService();
-		
-		if( m_Map != null ){
-			// KML ロード
-			m_iCurWayPoint	= m_Pref.getInt( "key_waypoint", 0 );
-			m_strKmlFile	= m_Pref.getString( "key_kml_file", null );
-			
-			// Nosig 時の zoom
-			m_iNosigZoom	= m_Pref.getInt( "key_nosig_zoom", 1 );
-		}
 	}
 
 	@Override 
 	public void onWindowFocusChanged( boolean hasFocus ){
 		super.onWindowFocusChanged( hasFocus );
+		
+		if( bDebug ) Log.d( "WpNavi", "WpNavi::onWindowFocusChanged" );
 		
 		if( hasFocus && m_Map != null ){
 			TypedValue tv = new TypedValue();
@@ -291,7 +291,7 @@ public class WpNaviActivity extends ActionBarActivity
 		// Map 移動
 		CameraPosition cameraPos = new CameraPosition.Builder()
 			.target( new LatLng( m_Pref.getFloat( "key_gmap_lat", 0f ), m_Pref.getFloat( "key_gmap_lng", 0f )))
-			.zoom( m_Pref.getFloat( "key_gmap_zoom", 0 ))
+			.zoom( m_iZoom )
 			.bearing( 0 )
 			.build();
 		m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
@@ -921,6 +921,8 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
+			m_iZoom = camOld.zoom;
+			
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( camOld.target )
 				.zoom( m_iNosigZoom )
@@ -935,9 +937,11 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		if( m_Map != null ){
 			CameraPosition camOld = m_Map.getCameraPosition();
+			m_iNosigZoom = camOld.zoom;
+			
 			CameraPosition camNew = new CameraPosition.Builder()
 				.target( camOld.target )
-				.zoom( camOld.zoom )
+				.zoom( m_iZoom )
 				.tilt( 0 )
 				.bearing( 0 )
 				.build();
