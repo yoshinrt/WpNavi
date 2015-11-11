@@ -143,22 +143,9 @@ public class WpNaviActivity extends ActionBarActivity
 		BindService();
 		
 		if( m_Map != null ){
-			// マーカークリックリスナー登録
-			m_Map.setOnMarkerClickListener( new OnMarkerClickListener(){
-				@Override
-				public boolean onMarkerClick( Marker marker ){
-					SetCurWayPoint( Integer.parseInt( marker.getTitle().toString().substring( 2 )) - 1 );
-
-					return false;
-				}
-			});
-
 			// KML ロード
 			m_iCurWayPoint	= m_Pref.getInt( "key_waypoint", 0 );
 			m_strKmlFile	= m_Pref.getString( "key_kml_file", null );
-			
-			// 渋滞情報
-			m_Map.setTrafficEnabled( m_Pref.getBoolean( "key_traffic_info", false ));
 			
 			// Nosig 時の zoom
 			m_iNosigZoom	= m_Pref.getInt( "key_nosig_zoom", 1 );
@@ -169,7 +156,7 @@ public class WpNaviActivity extends ActionBarActivity
 	public void onWindowFocusChanged( boolean hasFocus ){
 		super.onWindowFocusChanged( hasFocus );
 		
-		if( m_Map != null ){
+		if( hasFocus && m_Map != null ){
 			TypedValue tv = new TypedValue();
 			if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
 			    m_Map.setPadding( 0,
@@ -188,8 +175,12 @@ public class WpNaviActivity extends ActionBarActivity
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onPause" );
 		if( m_bEnableAds ) m_adView.pause();	// 広告
 		super.onPause();
+		
+		// サービス停止
+		int iStatus = mService.GetStatus();
 		UnbindService();
-
+		if( iStatus != STATUS_NOSIG ) StopService();
+		
 		Editor ed = m_Pref.edit();
 		
 		// GMap カメラ位置保存
@@ -201,9 +192,8 @@ public class WpNaviActivity extends ActionBarActivity
 			ed.putFloat( "key_gmap_zoom", cam.zoom );
 			ed.putInt( "key_waypoint", m_iCurWayPoint );
 			ed.putString( "key_kml_file", m_strKmlFile );
+			ed.putInt( "key_nosig_zoom", m_iNosigZoom );
 		}
-		
-		ed.putInt( "key_nosig_zoom", m_iNosigZoom );
 		
 		if( m_iMagicNum == 44298893 ){
 			ed.putInt( "key_flag", m_iMagicNum );
@@ -257,8 +247,6 @@ public class WpNaviActivity extends ActionBarActivity
 	protected void onDestroy(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onDestroy" );
 		
-		StopService();	// ★ STATUS_NOSIG の時は殺さないはず
-		
 		if( m_bEnableAds ) m_adView.destroy();	// 広告
 		UnregisterBroadcastReceiver();
 		
@@ -276,35 +264,46 @@ public class WpNaviActivity extends ActionBarActivity
 
 	private void SetupMapIfNeeded(){
 		// Do a null check to confirm that we have not already instantiated the map.
-		if( m_Map == null ){
-			// Try to obtain the map from the SupportMapFragment.
-			m_Map = (( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getMap();
-			// Check if we were successful in obtaining the map.
-			if( m_Map != null ){
-				m_Map.setMyLocationEnabled( true );
+		if( m_Map != null ) return;
+		
+		// Try to obtain the map from the SupportMapFragment.
+		m_Map = (( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getMap();
+		if( m_Map == null ) return;
+		
+		m_Map.setMyLocationEnabled( true );
 
-				UiSettings ui = m_Map.getUiSettings();
+		UiSettings ui = m_Map.getUiSettings();
 
-				// Keep the UI Settings state in sync with the checkboxes.
-				m_Map.setMyLocationEnabled( true );
-				
- 				ui.setZoomControlsEnabled( true );
-				//mUiSettings.setCompassEnabled( true );
-				ui.setMyLocationButtonEnabled( true );
-				ui.setScrollGesturesEnabled( true );
-				ui.setZoomGesturesEnabled( true );
-				//mUiSettings.setTiltGesturesEnabled( true );
-				//mUiSettings.setRotateGesturesEnabled( true );
-
-				// Map 移動
-				CameraPosition cameraPos = new CameraPosition.Builder()
-					.target( new LatLng( m_Pref.getFloat( "key_gmap_lat", 0f ), m_Pref.getFloat( "key_gmap_lng", 0f )))
-					.zoom( m_Pref.getFloat( "key_gmap_zoom", 0 ))
-					.bearing( 0 )
-					.build();
-				m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
+		// Keep the UI Settings state in sync with the checkboxes.
+		m_Map.setMyLocationEnabled( true );
+		
+		ui.setZoomControlsEnabled( true );
+		//mUiSettings.setCompassEnabled( true );
+		ui.setMyLocationButtonEnabled( true );
+		ui.setScrollGesturesEnabled( true );
+		ui.setZoomGesturesEnabled( true );
+		//mUiSettings.setTiltGesturesEnabled( true );
+		//mUiSettings.setRotateGesturesEnabled( true );
+		
+		// 渋滞情報
+		m_Map.setTrafficEnabled( m_Pref.getBoolean( "key_traffic_info", false ));
+		
+		// Map 移動
+		CameraPosition cameraPos = new CameraPosition.Builder()
+			.target( new LatLng( m_Pref.getFloat( "key_gmap_lat", 0f ), m_Pref.getFloat( "key_gmap_lng", 0f )))
+			.zoom( m_Pref.getFloat( "key_gmap_zoom", 0 ))
+			.bearing( 0 )
+			.build();
+		m_Map.moveCamera( CameraUpdateFactory.newCameraPosition( cameraPos ));
+		
+		// マーカークリックリスナー登録
+		m_Map.setOnMarkerClickListener( new OnMarkerClickListener(){
+			@Override
+			public boolean onMarkerClick( Marker marker ){
+				SetCurWayPoint( Integer.parseInt( marker.getTitle().toString().substring( 2 )) - 1 );
+				return false;
 			}
-		}
+		});
 	}
 
 	final void SetCurWayPoint( int iNewWp ){
@@ -907,6 +906,7 @@ public class WpNaviActivity extends ActionBarActivity
 		if( mService != null ){
 			// コネクションの解除
 			unbindService( mConnection );
+			mService = null;
 		}
 	}
 	
