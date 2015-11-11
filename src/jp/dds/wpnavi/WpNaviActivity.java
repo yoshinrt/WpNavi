@@ -115,7 +115,7 @@ public class WpNaviActivity extends ActionBarActivity
 			mActionBar.setBackgroundDrawable( new ColorDrawable( 0x80000000 ));
 		}
 		
-		setUpMapIfNeeded();
+		SetupMapIfNeeded();
 		DoIntent( getIntent());
 		
 		// 広告
@@ -274,7 +274,7 @@ public class WpNaviActivity extends ActionBarActivity
 	
 	/*** Google Maps ********************************************************/
 
-	private void setUpMapIfNeeded(){
+	private void SetupMapIfNeeded(){
 		// Do a null check to confirm that we have not already instantiated the map.
 		if( m_Map == null ){
 			// Try to obtain the map from the SupportMapFragment.
