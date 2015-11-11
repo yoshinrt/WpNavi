@@ -187,6 +187,12 @@ public class WpNaviActivity extends ActionBarActivity
 		if( m_Map != null ){
 			CameraPosition cam = m_Map.getCameraPosition();
 			
+			if( iStatus == STATUS_NOSIG ){
+				m_iNosigZoom = cam.zoom;
+			}else{
+				m_iZoom = cam.zoom;
+			}
+			
 			ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 			ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
 			ed.putFloat( "key_gmap_zoom", m_iZoom );
