@@ -189,7 +189,7 @@ public class WpNaviActivity extends ActionBarActivity
 			
 			ed.putFloat( "key_gmap_lng", ( float )cam.target.longitude );
 			ed.putFloat( "key_gmap_lat", ( float )cam.target.latitude );
-			ed.putFloat( "key_gmap_zoom", cam.zoom );
+			ed.putFloat( "key_gmap_zoom", m_iZoom );
 			ed.putInt( "key_waypoint", m_iCurWayPoint );
 			ed.putString( "key_kml_file", m_strKmlFile );
 			ed.putInt( "key_nosig_zoom", m_iNosigZoom );
