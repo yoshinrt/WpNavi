@@ -116,7 +116,6 @@ public class WpNaviActivity extends ActionBarActivity
 			mActionBar.setBackgroundDrawable( new ColorDrawable( 0x80000000 ));
 		}
 		
-		SetupMapIfNeeded();
 		DoIntent( getIntent());
 		
 		// 広告
@@ -155,19 +154,7 @@ public class WpNaviActivity extends ActionBarActivity
 		super.onWindowFocusChanged( hasFocus );
 		
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onWindowFocusChanged" );
-		
-		if( hasFocus && m_Map != null ){
-			TypedValue tv = new TypedValue();
-			if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
-			    m_Map.setPadding( 0,
-			    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
-			    	0,
-			    	findViewById( R.id.buttonPrevWp ).getHeight()
-			    );
-			}
-			
-			if( m_strKmlFile != null && m_WayPoint.Size() == 0 ) LoadKML( m_strKmlFile, m_iCurWayPoint );
-		}
+		SetupMapIfNeeded();
 	}
 	
 	@Override
@@ -310,6 +297,17 @@ public class WpNaviActivity extends ActionBarActivity
 				return false;
 			}
 		});
+		
+		TypedValue tv = new TypedValue();
+		if( getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true )){
+		    m_Map.setPadding( 0,
+		    	TypedValue.complexToDimensionPixelSize( tv.data,getResources().getDisplayMetrics()),
+		    	0,
+		    	findViewById( R.id.buttonPrevWp ).getHeight()
+		    );
+		}
+		
+		if( m_strKmlFile != null ) LoadKML( m_strKmlFile, m_iCurWayPoint );
 	}
 
 	final void SetCurWayPoint( int iNewWp ){
