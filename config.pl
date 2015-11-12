@@ -1,10 +1,3 @@
-@echo off
-set perlscr=%0 %*
-set perlscr=%perlscr:\=/%
-C:\cygwin\bin\bash --login -i -c 'cd "%CD%";CYGWIN=nodosfilewarning perl -x %perlscr%'
-goto :EOF
-
-##############################################################################
 #!/usr/bin/perl -w
 # .tab=4
 

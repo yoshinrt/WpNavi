@@ -44,7 +44,7 @@ public class WpNaviService extends Service
 	static final int MSG_UPDATE_WP	= 1;
 	static final int MSG_CHG_STATE	= 2;
 	
-	private Coordinate	WayPoint;
+	private KmlManager	WayPoint;
 
 	int		iCurWayPoint	= 0;
 	int		iNextDistance	= 50;
@@ -59,7 +59,6 @@ public class WpNaviService extends Service
 	
 	private	GoogleApiClient m_GoogleApiClient	= null;
 	public	Handler		m_MsgHandler			= null;
-	private	Message		Msg					= new Message();
 	public	Location	m_Location				= null;
 
 	/*** サービスハンドラ ***************************************************/
@@ -77,7 +76,7 @@ public class WpNaviService extends Service
 			// GPS 取得失敗
 			Toast.makeText( getApplicationContext(), R.string.text_NoGPS, Toast.LENGTH_LONG ).show();
 		}else{
-			WayPoint = new Coordinate( intent.getIntegerArrayListExtra( "WayPoint" ));
+			WayPoint = new KmlManager( intent.getIntArrayExtra( "WayPoint" ));
 			
 			if( bDebug ) Log.d( "WpNavi",
 				String.format(

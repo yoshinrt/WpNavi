@@ -2,18 +2,7 @@ package jp.dds.wpnavi;
 
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-
-import org.xmlpull.v1.XmlPullParser;
-
 import com.google.android.gms.ads.*;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -25,7 +14,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.SupportMapFragment;
 
 import android.annotation.SuppressLint;
@@ -56,7 +44,6 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.util.TypedValue;
-import android.util.Xml;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -78,7 +65,7 @@ public class WpNaviActivity extends ActionBarActivity
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
 
 	private int	m_iCurWayPoint			= 0;
-	private Coordinate	m_WayPoint		= new Coordinate();
+	private KmlManager	m_WayPoint		= new KmlManager();
 	private SharedPreferences m_Pref	= null;
 	private String	m_strKmlFile		= null;
 	private boolean m_bDownloading		= false;
@@ -333,177 +320,35 @@ public class WpNaviActivity extends ActionBarActivity
 
 	/*** Load KML ***********************************************************/
 
-	private static final int	KML_NONE		= 0;
-	private static final int	KML_POINT		= 1 << 0;
-	private static final int	KML_LINESTRING	= 1 << 1;
-	private static final int	KML_COORDINATES	= 1 << 2;
-
 	public boolean LoadKML( String strKmlFile, int iWayPoint ){
-		int		iState;
-		String	strTitle = null;
 		
-		if( m_Map == null || strKmlFile == null ) return false;
-
-		ZipFile zfIn = null;
-		InputStream fsIn = null;
+		KmlManager.KmlInfo Info = m_WayPoint.LoadKML(
+			strKmlFile, m_Pref.getInt( "key_NextDistance", 50 )
+		);
 		
-		try {
-			// KMZ を開いてみる
-			zfIn = new ZipFile( strKmlFile );
-			
-			for( Enumeration<? extends ZipEntry> enumulation = zfIn.entries(); enumulation.hasMoreElements();){
-				ZipEntry entry = enumulation.nextElement();
-				// System.out.println(entry.getName());
-				if( entry.isDirectory()) continue;
-				
-				if( bDebug ) Log.d( "WpNavi", "LoadKML:ZipEntry:" + entry.getName());
-				if( entry.getName().endsWith( ".kml" )){
-					fsIn = zfIn.getInputStream( entry );
-					break;
-				}
-			}
-			// kmz 中に kml がなかった
-			if( fsIn == null ){
-				zfIn.close();
-				Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
-				return false;
-			}
-		}catch( IOException e ){
-			// KMZ で失敗したので，KML を開く
-			if( zfIn != null ) try{ zfIn.close(); }catch( IOException e2 ){}
-			
-			try{
-				fsIn = new FileInputStream( strKmlFile );
-			}catch( FileNotFoundException e1 ){
-				Toast.makeText( this, R.string.text_FileNotFound, Toast.LENGTH_LONG ).show();
-				return false;
-			}
-		}
-
-		XmlPullParser xpp = Xml.newPullParser();
-
-		m_WayPoint.Clear();	// WP 等のクリア
-		iState = KML_NONE;
-
-		double[] Point = new double[ 6 ];
-		Point[ 2 ] = Point[ 3 ] = 1000;		// min Lng, Lat
-		Point[ 4 ] = Point[ 5 ] = -1000;	// max Lng, Lat
-		
-		PolylineOptions PolyLineOpt = new PolylineOptions();
-		int iMinDistance = m_Pref.getInt( "key_NextDistance", 50 );
-
-		try{
-			xpp.setInput( fsIn, "UTF-8" );
-
-			// パース
-			String str	= "";
-
-			for( int iType = xpp.getEventType(); iType != XmlPullParser.END_DOCUMENT;
-				iType = xpp.next()){
-				switch( iType ){
-				case XmlPullParser.START_TAG: // 開始タグ
-					str = xpp.getName();
-
-					if( str.equals( "LineString" )){
-						iState |= KML_LINESTRING;
-					}else if( str.equals( "Point" )){
-						iState |= KML_POINT;
-					}else if( str.equals( "coordinates" )){
-						iState |= KML_COORDINATES;
-					}else if( strTitle == null && str.equals( "name" )){
-						strTitle = xpp.nextText();
-					}
-
-					//Log.d( "WpNavi", "Tag:" + str );
-					break;
-
-				case XmlPullParser.TEXT: // タグの内容
-					if(( iState & KML_COORDINATES ) != 0 ){
-						str = xpp.getText();
-
-						if(( iState & KML_POINT ) != 0 ){
-							// 経由地
-							ParseCoordinate( str, Point );
-							if(
-								m_WayPoint.Size() == 0 ||
-								!m_WayPoint.InDistance( iMinDistance, m_WayPoint.Size() - 1, Point[ 0 ], Point[ 1 ] )
-							){
-								m_WayPoint.Add( Point[ 0 ], Point[ 1 ] );
-							}
-						}else if(( iState & KML_LINESTRING ) != 0 ){
-							// ルート
-							int c1 = 0, c2;
-							do{
-								// 空白のサーチ
-								for( c2 = c1; c2 < str.length(); ++c2 ){
-									if( str.charAt( c2 ) <= ' ' ) break;
-								}
-
-								if( c1 != c2 ){
-									ParseCoordinate( str.substring( c1, c2 ), Point );
-									PolyLineOpt.add( new LatLng( Point[ 1 ], Point[ 0 ] ));
-								}
-								c1 = c2 + 1;
-							}while( c1 < str.length());
-						}
-
-						//Log.d( "WpNavi", "Val:" + str );
-						// 空白で取得したものは全て処理対象外とする
-					}
-					break;
-
-				case XmlPullParser.END_TAG: // 終了タグ
-					str = xpp.getName();
-					//Log.d( "WpNavi", "Tag/:" + str );
-					if( str.equals( "LineString" )){
-						iState &= ~KML_LINESTRING;
-					}else if( str.equals( "Point" )){
-						iState &= ~KML_POINT;
-					}else if( str.equals( "coordinates" )){
-						iState &= ~KML_COORDINATES;
-					}
-					break;
-				}
-			}
-		}catch( Exception e ){
-			Toast.makeText( this, R.string.text_InvalidKMLFormat, Toast.LENGTH_LONG ).show();
-			// e.printStackTrace();
-			try{ fsIn.close(); }catch( IOException e2 ){}
+		if( Info.m_iErrorCode != 0 ){
+			Toast.makeText( this, Info.m_iErrorCode, Toast.LENGTH_LONG ).show();
 			return false;
 		}
-
-		// close
-		try{ fsIn.close(); }catch( IOException e ){}
-
-		// 一応数チェック
-		if( m_WayPoint.Size() == 0 ){
-			Toast.makeText( this, R.string.text_InvalidKMLFormat, Toast.LENGTH_LONG ).show();
-			return false;
-		}
-
-		// ここまで来たらロード成功
-
+		
 		m_Map.clear();
 		m_Markers.clear();
 		m_iCurWayPoint = 0;
 		m_strKmlFile = strKmlFile;
 		
 		// タイトル設定
-		if( strTitle != null ){
-			setTitle( strTitle );
+		if( Info.m_strTitle != null ){
+			setTitle( Info.m_strTitle );
 			
 			// 広告 OFF マジック #
 			try{
-				m_iMagicNum = Integer.parseInt( strTitle );
+				m_iMagicNum = Integer.parseInt( Info.m_strTitle );
 			}catch( Exception e ){
 				m_iMagicNum = 0;
 			}
 		}else{
 			setTitle( R.string.app_name );
 		}
-		
-		// WP を PolyLine にそってソートする
-		SortWp( PolyLineOpt.getPoints());
 		
 		// WP を Map に追加
 		for( int i = 0; i < m_WayPoint.Size(); ++i ){
@@ -518,9 +363,9 @@ public class WpNaviActivity extends ActionBarActivity
 		float fDipScale = getApplicationContext().getResources().getDisplayMetrics().density;
 		
 		// Line を Map に追加
-		PolyLineOpt.color( 0xFF1166FF );
-		PolyLineOpt.width(( int )( 6 * fDipScale ));
-		m_Map.addPolyline( PolyLineOpt );
+		Info.m_Polyline.color( 0xFF1166FF );
+		Info.m_Polyline.width(( int )( 6 * fDipScale ));
+		m_Map.addPolyline( Info.m_Polyline );
 
 		SetCurWayPoint(
 			iWayPoint >= 0 ? iWayPoint :
@@ -528,132 +373,24 @@ public class WpNaviActivity extends ActionBarActivity
 		);
 		
 		// ルートが 180W をまたいでいたら，補正
-		if( Point[ 4 ] - Point[ 2 ] > 180 ){
-			double tmp = Point[ 4 ];
-			Point[ 4 ] = Point[ 2 ];
-			Point[ 2 ] = tmp;
+		if( Info.m_dMaxLng - Info.m_dMinLng > 180 ){
+			double tmp = Info.m_dMaxLng;
+			Info.m_dMaxLng = Info.m_dMinLng;
+			Info.m_dMinLng = tmp;
 		}
 		
 		// ルート全体に移動
-		m_Map.animateCamera(
+		m_Map.moveCamera(
 			CameraUpdateFactory.newLatLngBounds(
 				LatLngBounds.builder()
-					.include( new LatLng( Point[ 5 ], Point[ 4 ] ))
-					.include( new LatLng( Point[ 3 ], Point[ 2 ] ))
+					.include( new LatLng( Info.m_dMaxLat, Info.m_dMaxLng ))
+					.include( new LatLng( Info.m_dMinLat, Info.m_dMinLng ))
 					.build(),
 				( int )( 16 * fDipScale )	// padding
 			)
 		);
 		
 		return true;
-	}
-	
-	/*** WP を PolyLine にそってソートする **********************************/
-	
-	private final static int iOnlineDist = 5;
-	private final static int iOnlineDistPow2 = iOnlineDist * iOnlineDist;
-	
-	// ルート線分の端点からこれだけ離れている WP は online 判定から除外
-	private final static int iDistTh = 1000; // [m]
-	
-	private final void SortWp( List<LatLng> Line ){
-		// 原点
-		double dLng0 = Line.get( 0 ).longitude;
-		double dLat0 = Line.get( 0 ).latitude;
-		
-		// 簡易 x,y 変換用のパラメータ
-		double dLng2Meter = Coordinate.Distance(
-			dLng0, dLat0, dLng0 + 1.0 / 3600, dLat0
-		) * 3600;
-		
-		double dLat2Meter = Coordinate.Distance(
-			dLng0, dLat0, dLng0, dLat0 + 1.0 / 3600
-		) * 3600;
-		
-		// WP を x,y 変換
-		int iWpX[] = new int[ m_WayPoint.Size()];
-		int iWpY[] = new int[ m_WayPoint.Size()];
-		
-		for( int i = 0; i < m_WayPoint.Size(); ++i ){
-			iWpX[ i ] = ( int )(( m_WayPoint.GetLng( i ) - dLng0 ) * dLng2Meter );
-			iWpY[ i ] = ( int )(( m_WayPoint.GetLat( i ) - dLat0 ) * dLat2Meter );
-		}
-		
-		int x0, y0;
-		int x1 = 0, y1 = 0;
-		int iSortedIdx = 0;
-		
-		for( int iIdxLine = 0; iIdxLine < Line.size() - 1 && iSortedIdx < m_WayPoint.Size() - 1; ++iIdxLine ){
-			
-			x0 = x1; y0 = y1;
-			x1 = ( int )(( Line.get( iIdxLine + 1 ).longitude - dLng0 ) * dLng2Meter );
-			y1 = ( int )(( Line.get( iIdxLine + 1 ).latitude  - dLat0 ) * dLat2Meter );
-			
-			int x01 = x0 - x1;
-			int y01 = y0 - y1;
-			
-			for( int iIdxWp = iSortedIdx; iIdxWp < m_WayPoint.Size(); ++iIdxWp ){
-				int xp0 = iWpX[ iIdxWp ] - x0;
-				int yp0 = iWpY[ iIdxWp ] - y0;
-				int xp1 = iWpX[ iIdxWp ] - x1;
-				int yp1 = iWpY[ iIdxWp ] - y1;
-				
-				// 線分端点と 1000m 離れているので online 判定スキップ
-				if(
-					( Math.abs( xp0 ) > iDistTh || Math.abs( yp0 ) > iDistTh ) &&
-					( Math.abs( xp1 ) > iDistTh || Math.abs( yp1 ) > iDistTh )
-				) continue;
-				
-				// L1<-L0 と Wp<-L0 がなす角が 90度以上なら，距離は L0～Wp となる
-				if( -x01 * xp0 - y01 * yp0 <= 0 ){
-					if( xp0 * xp0 + yp0 * yp0 <= iOnlineDistPow2 ){
-						if( bDebug ) Log.d( "WpNavi", String.format(
-							"WpSortP[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.sqrt( xp0 * xp0 + yp0 * yp0 )
-						));
-						Swap( iSortedIdx, iIdxWp, iWpX, iWpY );
-						++iSortedIdx;
-						break;
-					}
-				}
-				
-				// L0<-L1 と Wp<-L1 がなす角が 90度以下なら，距離は L1<-L0 線分～Wp となる
-				else{
-					if(
-						x01 * xp1 + y01 * yp1 >= 0 &&
-						Math.abs( x01 * yp1 - y01 * xp1 ) <= iOnlineDist * ( int )Math.sqrt( x01 * x01 + y01 * y01 )
-					){
-						if( bDebug ) Log.d( "WpNavi", String.format(
-							"WpSortL[%d]: %d<->%d, %f", iIdxLine, iSortedIdx, iIdxWp, Math.abs( x01 * yp1 - y01 * xp1 ) / Math.sqrt( x01 * x01 + y01 * y01 )
-						));
-						Swap( iSortedIdx, iIdxWp, iWpX, iWpY );
-						++iSortedIdx;
-						break;
-					}
-				}
-			}
-		}
-	}
-	
-	private final void Swap( int i, int j, int iWpX[], int iWpY[] ){
-		m_WayPoint.Swap( i, j );
-		int x = iWpX[ i ]; iWpX[ i ] = iWpX[ j ]; iWpX[ j ] = x;
-		int y = iWpY[ i ]; iWpY[ i ] = iWpY[ j ]; iWpY[ j ] = y;
-	}
-	
-	void ParseCoordinate( String str, double Point[] ){
-		int c1, c2;
-		if(
-			( c1 = str.indexOf( ',' )) >= 0 &&
-			( c2 = str.indexOf( ',', c1 + 1 )) >= 0
-		){
-			Point[ 0 ] = Double.parseDouble( str.substring( 0, c1 ));
-			Point[ 1 ] = Double.parseDouble( str.substring( c1 + 1, c2 ));
-			
-			if( Point[ 2 ] > Point[ 0 ] ) Point[ 2 ] = Point[ 0 ];
-			if( Point[ 4 ] < Point[ 0 ] ) Point[ 4 ] = Point[ 0 ];
-			if( Point[ 3 ] > Point[ 1 ] ) Point[ 3 ] = Point[ 1 ];
-			if( Point[ 5 ] < Point[ 1 ] ) Point[ 5 ] = Point[ 1 ];
-		}
 	}
 	
 	/*** Option menu ********************************************************/
@@ -888,7 +625,7 @@ public class WpNaviActivity extends ActionBarActivity
 		Intent intent = new Intent( this, WpNaviService.class );
 
 		// 設定値を Service に設定
-		intent.putIntegerArrayListExtra( "WayPoint", m_WayPoint.Points );
+		intent.putExtra( "WayPoint", m_WayPoint.Points );
 		mService.iCurWayPoint	= m_iCurWayPoint;
 		mService.iNextDistance	= m_Pref.getInt( "key_NextDistance", 50 );
 		mService.iWaitTime		= m_Pref.getInt( "key_WaitTime", 60 ) * 100;
