@@ -124,7 +124,7 @@ public class KmlManager{
 		public double m_dMinLng =  1000, m_dMinLat =  1000;
 		public double m_dMaxLng = -1000, m_dMaxLat = -1000;
 		public PolylineOptions m_Polyline = new PolylineOptions();
-		public int m_iErrorCode	= 0;;
+		public int m_iErrorCode	= 0;
 	};
 	
 	public KmlInfo LoadKML( String strKmlFile, int iMinDistance ){
