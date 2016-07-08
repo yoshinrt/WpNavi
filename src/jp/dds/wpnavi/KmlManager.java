@@ -269,7 +269,10 @@ public class KmlManager{
 		try{ fsIn.close(); }catch( IOException e ){}
 
 		// 一応数チェック
-		if( TmpPoints.size() == 0 ){
+		if(
+			TmpPoints.size() == 0 ||
+			Info.m_Polyline.getPoints().size() == 0
+		){
 			Info.m_iErrorCode = R.string.text_InvalidKMLFormat;
 			return Info;
 		}
