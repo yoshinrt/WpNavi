@@ -6,9 +6,8 @@ android {
 
     defaultConfig {
         applicationId "jp.dds.wpnavi"
-        minSdkVersion 9
+        minSdkVersion 11
         targetSdkVersion 21
-        //multiDexEnabled true
     }
 
     buildTypes {
@@ -20,6 +19,18 @@ android {
 
     lintOptions {
         disable 'MissingTranslation'
+    }
+
+    task('incrementVersionCode') << {
+        exec {
+            commandLine 'cscript', 'd:/dds/bin/scripter.wsf', '-w', '../../set_svn_version.pl', 'src/main/AndroidManifest.xml'
+        }
+    }
+
+    tasks.whenTaskAdded { task ->
+        if (task.name == 'generateReleaseBuildConfig') {
+            task.dependsOn 'incrementVersionCode'
+        }
     }
 }
 
