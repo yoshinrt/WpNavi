@@ -1,21 +1,5 @@
 package jp.dds.wpnavi;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.util.ArrayList;
-import com.google.android.gms.ads.*;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
-import com.google.android.gms.maps.UiSettings;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.SupportMapFragment;
-
 import android.annotation.SuppressLint;
 import android.app.DownloadManager;
 import android.app.DownloadManager.Query;
@@ -53,10 +37,31 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdSize;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMap.OnMarkerClickListener;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.io.File;
+import java.io.FileFilter;
+import java.util.ArrayList;
+
 import jp.dds.dds_lib.FileOpenDialog;
 
 public class WpNaviActivity extends ActionBarActivity
-	implements FileOpenDialog.FileOpenDialogListener {
+	implements FileOpenDialog.FileOpenDialogListener, OnMapReadyCallback{
 
 	static final boolean bDebug	= BuildConfig.DEBUG;
 	boolean m_bEnableAds	= true;
@@ -79,7 +84,7 @@ public class WpNaviActivity extends ActionBarActivity
 	private LinearLayout m_LayoutAd;	// 広告表示用スペース
 	private AdView m_adView;
 	private int	m_iMagicNum		= 0;
-	
+
 	/*** Activity management ************************************************/
 
 	@SuppressWarnings("unused")
@@ -245,8 +250,12 @@ public class WpNaviActivity extends ActionBarActivity
 		if( m_Map != null ) return;
 		
 		// Try to obtain the map from the SupportMapFragment.
-		m_Map = (( SupportMapFragment )getSupportFragmentManager().findFragmentById( R.id.map )).getMap();
-		if( m_Map == null ) return;
+		( ( SupportMapFragment ) getSupportFragmentManager().findFragmentById( R.id.map ) ).getMapAsync( this );
+	}
+
+	@Override
+	public void onMapReady( GoogleMap googleMap ){
+		if(( m_Map =googleMap ) == null ) return;
 		
 		m_Map.setMyLocationEnabled( true );
 
