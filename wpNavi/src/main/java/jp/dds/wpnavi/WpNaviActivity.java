@@ -32,7 +32,6 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -97,9 +96,6 @@ public class WpNaviActivity extends ActionBarActivity
 		// プリファレンス
 		m_Pref = PreferenceManager.getDefaultSharedPreferences( this );
 		
-		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB ){
-			getWindow().requestFeature( Window.FEATURE_ACTION_BAR_OVERLAY );
-		}
 		setContentView( R.layout.main );
 		
 		// ActionBar オーバーレイ設定

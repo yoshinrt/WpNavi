@@ -32,7 +32,8 @@
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
 				android:onClick="onClickPrevWp"
-				android:text="@string/button_prevwp" />
+				android:text="@string/button_prevwp"
+				android:allowUndo="false"/>
 	
 			<Button
 				android:id="@+id/buttonStartNavi"

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 # .tab=4
 
-$File = 'AndroidManifest.xml';
+$File = 'wpNavi/src/main/AndroidManifest.xml';
 
 $Debug = defined( $ARGV[ 0 ] ) && $ARGV[ 0 ] =~ /^d/;
 
