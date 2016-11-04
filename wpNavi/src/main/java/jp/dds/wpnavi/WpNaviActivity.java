@@ -98,6 +98,11 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		setContentView( R.layout.main );
 		
+		getWindow().addFlags(
+			WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
+			WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+		);
+
 		// ActionBar オーバーレイ設定
 		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB ){
 			ActionBar mActionBar = getSupportActionBar();
@@ -126,7 +131,7 @@ public class WpNaviActivity extends ActionBarActivity
 		m_iCurWayPoint	= m_Pref.getInt( "key_waypoint", 0 );
 		m_strKmlFile	= m_Pref.getString( "key_kml_file", null );
 		m_fZoom			= m_Pref.getFloat( "key_gmap_zoom", 1 );
-		m_fNosigZoom	= m_Pref.getFloat( "key_nosig_zoom", 1 );
+		m_fNosigZoom	= m_Pref.getFloat( "key_nosig_zoom", 16 );
 	}
 
 	@Override
