@@ -265,18 +265,27 @@ public class WpNaviService extends Service
 		m_Location	= location;
 		
 		// 経由地に近づいたらナビ起動
-		boolean bStartNavi =
-			(
-				( bRestartTest && bDebug && ( iDebugNavStartCnt = ( iDebugNavStartCnt + 1 ) & 0xF ) == 0 ) ||
-				WayPoint.InDistance( iNextDistance, iCurWayPoint, location.getLongitude(), location.getLatitude())
-			) && (
-				bReverseOrder ? --iCurWayPoint >= 0 : ++iCurWayPoint < WayPoint.Size()
-			);
+		boolean bWpReached = (
+			( bRestartTest && bDebug && ( iDebugNavStartCnt = ( iDebugNavStartCnt + 1 ) & 0xF ) == 0 ) ||
+			WayPoint.InDistance( iNextDistance, iCurWayPoint, location.getLongitude(), location.getLatitude())
+		);
 		
-		if(( bStartNavi || m_iStatus == STATUS_NOSIG ) && IsNetworkAlive()){
+		// Wp# 更新，最終 Wp に到達したら終了
+		if(
+			bReverseOrder ?
+				--iCurWayPoint < 0 :
+				++iCurWayPoint >= WayPoint.Size()
+		){
+			StopNavi();
+			
+		}else if(( bWpReached || m_iStatus == STATUS_NOSIG ) && IsNetworkAlive()){
+			// 電波があって，and
+			//   Wp に到達する or
+			//   いままで NOSIG だった (電波が復活した)
+			// であるなら，次のナビを起動する
 			StartNavi();
 			
-		}else if( bStartNavi && m_iStatus == STATUS_RUNNING ){
+		}else if( bWpReached && m_iStatus == STATUS_RUNNING ){
 			// STATUS_RUNNING で WP に到達した時に電波がない状態．
 			// Google ナビを閉じて WpNavi を前面に出す．
 			SetStatus( STATUS_NOSIG );
@@ -290,11 +299,9 @@ public class WpNaviService extends Service
 		}else if( m_iStatus == STATUS_NOSIG && m_MsgHandler != null ){
 			// 位置表示更新
 			Message Msg = new Message();
-			Msg.what	= bStartNavi ? MSG_UPDATE_WP : MSG_UPDATE;
+			Msg.what	= bWpReached ? MSG_UPDATE_WP : MSG_UPDATE;
 			m_MsgHandler.sendMessage( Msg );
 		}
-		
-		if( iCurWayPoint == ( bReverseOrder ? 0 : WayPoint.Size() - 1 )) StopNavi();
 	}
 	
 	// 電波状態取得
