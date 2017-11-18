@@ -1,0 +1,13 @@
+.gradle/
+.idea/compiler.xml
+.idea/copyright/
+.idea/encodings.xml
+.idea/libraries/
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/workspace.xml
+build/
+local.properties
+build/
+*.iml
