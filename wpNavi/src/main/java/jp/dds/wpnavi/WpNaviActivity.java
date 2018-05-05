@@ -641,6 +641,7 @@ public class WpNaviActivity extends ActionBarActivity
 		mService.iWaitTime		= m_Pref.getInt( "key_WaitTime", 60 ) * 100;
 		mService.bKillByRoot	= m_Pref.getBoolean( "key_kill_by_root", false );
 		mService.bReverseOrder	= m_Pref.getBoolean( "key_ReverseOrder", false );
+		mService.bRestartTest	= m_Pref.getBoolean( "key_kill_test", false );
 		
 		startService( intent );
 	}

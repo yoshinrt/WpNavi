@@ -23,6 +23,5 @@
 	/>
 	<CheckBoxPreference android:key="key_traffic_info" android:title="@string/perf_TrafficInfo" />
 	<CheckBoxPreference android:key="key_kill_by_root" android:title="@string/pref_kill_by_root" android:summary="@string/pref_kill_by_root_exp"/>
-	
-			
+	<CheckBoxPreference android:key="key_kill_test" android:title="@string/pref_kill_test"/>
 </PreferenceScreen>

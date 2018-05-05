@@ -33,7 +33,6 @@ public class WpNaviService extends Service
 	implements ConnectionCallbacks, OnConnectionFailedListener, LocationListener
 {
 	private static final boolean bDebug = WpNaviActivity.bDebug;
-	private static final boolean bRestartTest = false;
 
 	static final int STATUS_IDLE	= 0;
 	static final int STATUS_RESTART	= 1;
@@ -51,6 +50,7 @@ public class WpNaviService extends Service
 	int		iWaitTime		= 0;
 	boolean	bReverseOrder	= false;
 	boolean	bKillByRoot		= false;
+	boolean bRestartTest	= false;
 
 	private long	iRestartTime	= 0;
 	private int		m_iStatus		= STATUS_IDLE;
@@ -159,7 +159,7 @@ public class WpNaviService extends Service
 			WayPoint.GetLng( iCurWayPoint ) + "," +
 			WayPoint.GetLat( iCurWayPoint )
 		);
-
+		
 		SetStatus( STATUS_RUNNING );
 		
 		SetNotification();
@@ -256,26 +256,31 @@ public class WpNaviService extends Service
 
 	@Override
 	public void onLocationChanged( Location location ){
-		if( bDebug ) Log.d( "WpNavi",
-			"st:" + m_iStatus
-			+ " d:" + (( int )WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude()))
-			+ " GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude()
-		);
-		
 		m_Location	= location;
 		
 		// 経由地に近づいたらナビ起動
 		boolean bWpReached = (
-			( bRestartTest && bDebug && ( iDebugNavStartCnt = ( iDebugNavStartCnt + 1 ) & 0xF ) == 0 ) ||
+			( bRestartTest && ( iDebugNavStartCnt = ( iDebugNavStartCnt + 1 ) & 0xF ) == 0 ) ||
 			WayPoint.InDistance( iNextDistance, iCurWayPoint, location.getLongitude(), location.getLatitude())
+		);
+		
+		if( bDebug ) Log.d( "WpNavi",
+			"st:" + m_iStatus
+			+ " wp:" + iCurWayPoint
+			+ " r:" + bWpReached
+			+ " d:" + (( int )WayPoint.Distance( iCurWayPoint, location.getLongitude(), location.getLatitude()))
+			+ " GPS lon=" + location.getLongitude() + " lat=" + location.getLatitude()
 		);
 		
 		// Wp# 更新，最終 Wp に到達したら終了
 		if(
-			bReverseOrder ?
-				--iCurWayPoint < 0 :
-				++iCurWayPoint >= WayPoint.Size()
+			bWpReached && (
+				bReverseOrder ?
+					--iCurWayPoint < 0 :
+					++iCurWayPoint >= WayPoint.Size()
+			)
 		){
+			if( bDebug ) Log.d( "WpNavi", "Destination reached" );
 			StopNavi();
 			
 		}else if(( bWpReached || m_iStatus == STATUS_NOSIG ) && IsNetworkAlive()){
@@ -283,11 +288,15 @@ public class WpNaviService extends Service
 			//   Wp に到達する or
 			//   いままで NOSIG だった (電波が復活した)
 			// であるなら，次のナビを起動する
+			if( bDebug ) Log.d( "WpNavi", "Network re-connected" );
+			
 			StartNavi();
 			
 		}else if( bWpReached && m_iStatus == STATUS_RUNNING ){
 			// STATUS_RUNNING で WP に到達した時に電波がない状態．
 			// Google ナビを閉じて WpNavi を前面に出す．
+			if( bDebug ) Log.d( "WpNavi", "Network disconnected" );
+			
 			SetStatus( STATUS_NOSIG );
 			CancelNotification();
 			
@@ -298,6 +307,8 @@ public class WpNaviService extends Service
 			
 		}else if( m_iStatus == STATUS_NOSIG && m_MsgHandler != null ){
 			// 位置表示更新
+			if( bDebug ) Log.d( "WpNavi", "normal update" );
+			
 			Message Msg = new Message();
 			Msg.what	= bWpReached ? MSG_UPDATE_WP : MSG_UPDATE;
 			m_MsgHandler.sendMessage( Msg );

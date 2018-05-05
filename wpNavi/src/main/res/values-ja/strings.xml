@@ -19,7 +19,8 @@
     <string name="pref_wait_time">ナビ再起動時の待ち時間</string>
     <string name="pref_kill_by_root">確実なナビ再起動</string>
     <string name="pref_kill_by_root_exp">root権限が必要</string>
+    <string name="pref_kill_test">Google Maps キルテスト</string>
     <string name="perf_TrafficInfo">渋滞情報を表示</string>
     <string name="pref_ReverseOrder">逆順に案内</string>
-	<string name="URL_OnlineManual">https://sites.google.com/site/vsdforgps/home/waypoint-navi</string>
+    <string name="URL_OnlineManual">https://sites.google.com/site/vsdforgps/home/waypoint-navi</string>
 </resources>

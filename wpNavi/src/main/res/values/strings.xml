@@ -18,8 +18,8 @@
     <string name="pref_wait_time">Wait time of restarting navigation</string>
     <string name="pref_kill_by_root">Surely restarting navigation</string>
     <string name="pref_kill_by_root_exp">Requires ROOT privilege</string>
+    <string name="pref_kill_test">Google Maps kill test</string>
     <string name="perf_TrafficInfo">Show traffic information</string>
     <string name="pref_ReverseOrder">Guide in reverse order</string>
     <string name="URL_OnlineManual">https://translate.google.co.jp/translate?hl=ja&amp;sl=ja&amp;tl=en&amp;u=https%3A%2F%2Fsites.google.com%2Fsite%2Fvsdforgps%2Fhome%2Fwaypoint-navi</string>
-    
 </resources>
