@@ -374,11 +374,9 @@ public class WpNaviService extends Service
 		try{
 			process = Runtime.getRuntime().exec( "su" );
 			DataOutputStream dos = new DataOutputStream( process.getOutputStream());
-			dos.writeBytes(
-				"gmap=com.google.android.apps.maps;while ps|grep -q $gmap;do kill -9 `ps|grep $gmap|awk '{ print $2 }'`;done;exit\n"
-			);
+			dos.writeBytes( "/system/bin/killall com.google.android.apps.maps\n" );
 			dos.close();
-
+			
 			process.waitFor();
 		}catch( Exception e ){}
 	}
