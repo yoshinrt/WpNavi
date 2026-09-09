@@ -1,5 +1,6 @@
 package jp.dds.wpnavi;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.DownloadManager;
 import android.app.DownloadManager.Query;
@@ -12,6 +13,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
@@ -24,6 +26,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.preference.PreferenceManager;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -67,6 +71,7 @@ public class WpNaviActivity extends ActionBarActivity
 	private static final String m_strGMEUrl = "https://www.google.com/maps/d";
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
+	private static final int REQUEST_LOCATION_PERMISSION = 1001;
 
 	private int	m_iCurWayPoint			= 0;
 	private KmlManager	m_WayPoint		= new KmlManager();
@@ -232,15 +237,20 @@ public class WpNaviActivity extends ActionBarActivity
 
 	@Override
 	public void onMapReady( GoogleMap googleMap ){
-		if(( m_Map =googleMap ) == null ) return;
+		if(( m_Map = googleMap ) == null ) return;
 		
-		m_Map.setMyLocationEnabled( true );
+		// 位置情報のパーミッション確認
+		if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+				|| ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+			m_Map.setMyLocationEnabled( true );
+		} else {
+			ActivityCompat.requestPermissions(this,
+					new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
+					REQUEST_LOCATION_PERMISSION);
+		}
 
 		UiSettings ui = m_Map.getUiSettings();
 
-		// Keep the UI Settings state in sync with the checkboxes.
-		m_Map.setMyLocationEnabled( true );
-		
 		ui.setZoomControlsEnabled( true );
 		//mUiSettings.setCompassEnabled( true );
 		ui.setMyLocationButtonEnabled( true );
@@ -279,6 +289,21 @@ public class WpNaviActivity extends ActionBarActivity
 		}
 		
 		if( m_strKmlFile != null ) LoadKML( m_strKmlFile, m_iCurWayPoint );
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == REQUEST_LOCATION_PERMISSION) {
+			if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				if (m_Map != null) {
+					if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+							|| ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+						m_Map.setMyLocationEnabled(true);
+					}
+				}
+			}
+		}
 	}
 
 	final void SetCurWayPoint( int iNewWp ){
@@ -526,10 +551,16 @@ public class WpNaviActivity extends ActionBarActivity
 		}
 	};
 		
-	final void RegisterBroadcastReceiver(){
-		registerReceiver( mReceiver, new IntentFilter( DownloadManager.ACTION_DOWNLOAD_COMPLETE ));
+	final void RegisterBroadcastReceiver() {
+		IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // API 33 (Android 13) 以上
+			registerReceiver(mReceiver, filter, Context.RECEIVER_EXPORTED);
+		} else {
+			registerReceiver(mReceiver, filter);
+		}
 	}
-	
+
 	final void UnregisterBroadcastReceiver(){
 		if( mReceiver != null ) unregisterReceiver( mReceiver );
 		mReceiver = null;
