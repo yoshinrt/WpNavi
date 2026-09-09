@@ -16,6 +16,7 @@ import android.util.Log;
 import android.util.Xml;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.PolylineOptions;
+import jp.dds.dds_lib.BuildConfig;
 
 public class KmlManager{
 	static final boolean bDebug	= BuildConfig.DEBUG;

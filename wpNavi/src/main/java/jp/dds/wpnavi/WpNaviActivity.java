@@ -58,6 +58,7 @@ import java.io.FileFilter;
 import java.util.ArrayList;
 
 import jp.dds.dds_lib.FileOpenDialog;
+import jp.dds.dds_lib.BuildConfig;
 
 public class WpNaviActivity extends ActionBarActivity
 	implements FileOpenDialog.FileOpenDialogListener, OnMapReadyCallback{
@@ -415,45 +416,44 @@ public class WpNaviActivity extends ActionBarActivity
 
 	@Override
 	public boolean onOptionsItemSelected( MenuItem item ){
-		switch( item.getItemId()){
-			case R.id.itemLoadKML:
-				FileOpenDialog fod = new FileOpenDialog(
+		int id = item.getItemId();
+
+		if (id == R.id.itemLoadKML) {
+			FileOpenDialog fod = new FileOpenDialog(
 					WpNaviActivity.this, this, FileOpenDialog.MODE_FILE,
 					new FileFilter(){
 						public boolean accept( File pathname ){
 							return
-								pathname.getName().endsWith( ".kml" ) ||
-								pathname.getName().endsWith( ".kmz" ) ||
-								pathname.getName().endsWith( ".xml" );
+									pathname.getName().endsWith( ".kml" ) ||
+											pathname.getName().endsWith( ".kmz" ) ||
+											pathname.getName().endsWith( ".xml" );
 						}
 					}
-				);
-				fod.openDirectory( m_strKmlFile );
-				return true;
+			);
+			fod.openDirectory( m_strKmlFile );
+			return true;
 
-			case R.id.itemOpenGME: {
-				Intent intent = new Intent( Intent.ACTION_VIEW,	Uri.parse( m_strGMEUrl + "/?authuser=0&action=open" ));
-				intent.setFlags( Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
-				startActivity( intent );
-				return true;
-			}
-				
-			case R.id.itemSetting: {
-				Intent intent = new Intent( WpNaviActivity.this, WpNaviPreference.class );
-				startActivityForResult( intent, 0 );
-				return true;
-			}
-			
-			case R.id.itemHelp: {
-				Intent intent = new Intent( Intent.ACTION_VIEW,	Uri.parse( getString( R.string.URL_OnlineManual )));
-				intent.setFlags( Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
-				startActivity( intent );
-				return true;
-			}
+		} else if (id == R.id.itemOpenGME) {
+			Intent intent = new Intent( Intent.ACTION_VIEW, Uri.parse( m_strGMEUrl + "/?authuser=0&action=open" ));
+			intent.setFlags( Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
+			startActivity( intent );
+			return true;
+
+		} else if (id == R.id.itemSetting) {
+			Intent intent = new Intent( WpNaviActivity.this, WpNaviPreference.class );
+			startActivityForResult( intent, 0 );
+			return true;
+
+		} else if (id == R.id.itemHelp) {
+			Intent intent = new Intent( Intent.ACTION_VIEW, Uri.parse( getString( R.string.URL_OnlineManual )));
+			intent.setFlags( Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP );
+			startActivity( intent );
+			return true;
 		}
-		return false;
-	}
 
+		return super.onOptionsItemSelected(item);
+	}
+	
 	public void onFileSelected( File file ){
 		LoadKML( file.getAbsolutePath(), -1 );
 	}
