@@ -88,6 +88,9 @@ class WpNaviActivity : ActionBarActivity(), FileOpenDialogListener, OnMapReadyCa
             mActionBar!!.setBackgroundDrawable(ColorDrawable(-0x80000000))
         }
 
+        // ★ Android 13 (API 33) 以降の通知パーミッション要求処理
+        checkNotificationPermission()
+
         DoIntent(intent)
 
         RegisterBroadcastReceiver()
@@ -98,6 +101,22 @@ class WpNaviActivity : ActionBarActivity(), FileOpenDialogListener, OnMapReadyCa
         m_strKmlFile = pref.getString("key_kml_file", null)
         m_fZoom = pref.getFloat("key_gmap_zoom", 1f)
         m_fNosigZoom = pref.getFloat("key_nosig_zoom", 16f)
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    REQUEST_NOTIFICATION_PERMISSION
+                )
+            }
+        }
     }
 
     override fun onResume() {
@@ -307,6 +326,12 @@ class WpNaviActivity : ActionBarActivity(), FileOpenDialogListener, OnMapReadyCa
                     }
                 }
             }
+        } else if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (bDebug) Log.d("WpNavi", "Notification permission granted")
+            } else {
+                if (bDebug) Log.d("WpNavi", "Notification permission denied")
+            }
         }
     }
 
@@ -461,7 +486,6 @@ class WpNaviActivity : ActionBarActivity(), FileOpenDialogListener, OnMapReadyCa
         if (intent == null) return false
         if (bDebug) Log.d("WpNavi", "DoIntent:Action:" + intent.action)
 
-
         // notification から呼ばれた
         if (intent.getBooleanExtra("quit_service", false)) {
             if (bDebug) Log.d("WpNavi", "DoIntent:Killed by notification")
@@ -469,12 +493,43 @@ class WpNaviActivity : ActionBarActivity(), FileOpenDialogListener, OnMapReadyCa
             return true
         }
 
+        val strUrl = intent.dataString ?: return false
 
-        // URL フィルタに引っかかった
-        val strUrl = intent.dataString
-        if (strUrl != null) return DownloadURL(strUrl)
+        // mailto: インテントのチェック
+        if (strUrl.startsWith("mailto:", ignoreCase = true)) {
+            // URLエンコードされた文字をデコードして判定
+            val decodedUrl = try {
+                java.net.URLDecoder.decode(strUrl, "UTF-8")
+            } catch (e: Exception) {
+                strUrl
+            }
+
+            // マイマップのURLが含まれていない場合は、他のメールアプリ等に転送して終了
+            if (!decodedUrl.contains("google.com/maps/d")) {
+                forwardToOtherApps(intent)
+                finish() // 自身のActivityを閉じる
+                return false
+            }
+
+            DownloadURL(decodedUrl)
+        }
 
         return false
+    }
+
+    // 対象外の mailto インテントを他アプリに流す処理
+    private fun forwardToOtherApps(originalIntent: Intent) {
+        try {
+            val newIntent = Intent(originalIntent.action, originalIntent.data).apply {
+                // 自アプリのパッケージを除外して再発行
+                setPackage(null)
+            }
+            // アプリ選択ダイアログを表示
+            val chooser = Intent.createChooser(newIntent, null)
+            startActivity(chooser)
+        } catch (e: Exception) {
+            Log.e("WpNavi", "Failed to forward intent", e)
+        }
     }
 
     fun DownloadURL(strUrl: String): Boolean {
@@ -774,5 +829,6 @@ class WpNaviActivity : ActionBarActivity(), FileOpenDialogListener, OnMapReadyCa
         private const val m_strDownloadKmlName = "/wpnavi.kml"
         private const val m_strDownloadKmlNameTmp = "/wpnavi.kml.tmp"
         private const val REQUEST_LOCATION_PERMISSION = 1001
+        private const val REQUEST_NOTIFICATION_PERMISSION = 1002
     }
 }

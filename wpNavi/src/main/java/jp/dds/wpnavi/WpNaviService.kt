@@ -1,13 +1,16 @@
 package jp.dds.wpnavi
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Binder
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -323,25 +326,52 @@ class WpNaviService : Service(), ConnectionCallbacks, OnConnectionFailedListener
         intent.setClassName("jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity")
         intent.putExtra("quit_service", true)
 
-        //intentの設定
+        // Android 12 (API 31) 以降向けの FLAG_IMMUTABLE 対応
+        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
+
+        // intentの設定
         val contentIntent =
-            PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+            PendingIntent.getActivity(this, 0, intent, pendingIntentFlags)
 
+        val channelId = "wpnavi_service_channel"
 
-        // LargeIcon の Bitmap を生成
-        //Bitmap largeIcon = BitmapFactory.decodeResource( getResources(), R.drawable.ic_launcher );
+        val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Android 8.0 (API 26) 以上は標準の Notification.Builder を使用
+            val channel = NotificationChannel(
+                channelId,
+                "WpNavi Service",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            notificationManager!!.createNotificationChannel(channel)
 
-        // NotificationBuilderを作成
-        val notification = NotificationCompat.Builder(this@WpNaviService)
-            .setContentIntent(contentIntent)
-            .setTicker(strNotifyMsg)
-            .setSmallIcon(R.drawable.ic_notify)
-            .setContentTitle(strNotifyMsg)
-            .setContentText(resources.getText(R.string.app_name)) //.setLargeIcon( largeIcon )
-            .setWhen(System.currentTimeMillis())
-            .setAutoCancel(false)
-            .setOngoing(true)
-            .build()
+            android.app.Notification.Builder(this, channelId)
+                .setContentIntent(contentIntent)
+                .setTicker(strNotifyMsg)
+                .setSmallIcon(R.drawable.ic_notify)
+                .setContentTitle(strNotifyMsg)
+                .setContentText(resources.getText(R.string.app_name))
+                .setWhen(System.currentTimeMillis())
+                .setAutoCancel(false)
+                .setOngoing(true)
+                .build()
+        } else {
+            // Android 7.1 以下は Support Library の Builder を使用
+            @Suppress("DEPRECATION")
+            NotificationCompat.Builder(this@WpNaviService)
+                .setContentIntent(contentIntent)
+                .setTicker(strNotifyMsg)
+                .setSmallIcon(R.drawable.ic_notify)
+                .setContentTitle(strNotifyMsg)
+                .setContentText(resources.getText(R.string.app_name))
+                .setWhen(System.currentTimeMillis())
+                .setAutoCancel(false)
+                .setOngoing(true)
+                .build()
+        }
 
         notificationManager!!.notify(R.string.app_name, notification)
     }
