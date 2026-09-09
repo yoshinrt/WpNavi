@@ -453,7 +453,7 @@ public class WpNaviActivity extends ActionBarActivity
 
 		return super.onOptionsItemSelected(item);
 	}
-	
+
 	public void onFileSelected( File file ){
 		LoadKML( file.getAbsolutePath(), -1 );
 	}
