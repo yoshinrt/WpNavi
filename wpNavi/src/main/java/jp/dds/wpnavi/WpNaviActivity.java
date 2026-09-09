@@ -64,7 +64,6 @@ public class WpNaviActivity extends ActionBarActivity
 	implements FileOpenDialog.FileOpenDialogListener, OnMapReadyCallback{
 
 	static final boolean bDebug	= BuildConfig.DEBUG;
-	boolean m_bEnableAds	= true;
 	private static final String m_strGMEUrl = "https://www.google.com/maps/d";
 	private static final String m_strDownloadKmlName	= "/wpnavi.kml";
 	private static final String m_strDownloadKmlNameTmp	= "/wpnavi.kml.tmp";
@@ -80,10 +79,6 @@ public class WpNaviActivity extends ActionBarActivity
 
 	private GoogleMap m_Map;
 	private ArrayList<Marker>	m_Markers = new ArrayList<Marker>();
-	
-	private LinearLayout m_LayoutAd;	// 広告表示用スペース
-	private AdView m_adView;
-	private int	m_iMagicNum		= 0;
 
 	/*** Activity management ************************************************/
 
@@ -112,20 +107,6 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		DoIntent( getIntent());
 		
-		// 広告
-		m_bEnableAds = !bDebug && m_Pref.getInt( "key_flag", 0 ) != 44298893;
-		if( m_bEnableAds ){
-			m_adView = new AdView( this );
-			m_adView.setAdUnitId( "ca-app-pub-2092805559453853/9075326132" );
-			m_adView.setAdSize( AdSize.SMART_BANNER );
-			
-			m_LayoutAd = ( LinearLayout )findViewById( R.id.LinearLayout1 );
-			m_LayoutAd.addView( m_adView );
-			
-			AdRequest adRequest = new AdRequest.Builder().build();
-			m_adView.loadAd( adRequest );
-		}
-		
 		RegisterBroadcastReceiver();
 		
 		// 設定ロード
@@ -139,7 +120,6 @@ public class WpNaviActivity extends ActionBarActivity
 	protected void onResume(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onResume" );
 		super.onResume();
-		if( m_bEnableAds ) m_adView.resume();	// 広告
 		BindService();
 	}
 
@@ -154,7 +134,6 @@ public class WpNaviActivity extends ActionBarActivity
 	@Override
 	protected void onPause(){
 		if( bDebug ) Log.d( "WpNavi", "WpNavi::onPause" );
-		if( m_bEnableAds ) m_adView.pause();	// 広告
 		super.onPause();
 		
 		// サービス停止
@@ -179,9 +158,6 @@ public class WpNaviActivity extends ActionBarActivity
 			ed.putFloat( "key_nosig_zoom", m_fNosigZoom );
 		}
 		
-		if( m_iMagicNum == 44298893 ){
-			ed.putInt( "key_flag", m_iMagicNum );
-		}
 		ed.commit();
 	}
 
@@ -232,7 +208,6 @@ public class WpNaviActivity extends ActionBarActivity
 		
 		StopService();
 		
-		if( m_bEnableAds ) m_adView.destroy();	// 広告
 		UnregisterBroadcastReceiver();
 		
 		super.onDestroy();
@@ -350,13 +325,6 @@ public class WpNaviActivity extends ActionBarActivity
 		// タイトル設定
 		if( Info.m_strTitle != null ){
 			setTitle( Info.m_strTitle );
-			
-			// 広告 OFF マジック #
-			try{
-				m_iMagicNum = Integer.parseInt( Info.m_strTitle );
-			}catch( Exception e ){
-				m_iMagicNum = 0;
-			}
 		}else{
 			setTitle( R.string.app_name );
 		}
