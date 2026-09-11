@@ -59,10 +59,12 @@ class KmlManager {
 		dLong1: Double, dLati1: Double
 	): Boolean {
 		val iLatDist: Int = (abs(dLati0 - dLati1) * 110949.75926813729).toInt()
+		Log.d("WpNavi", "LatDiff=" + iLatDist + "," + dLati0 + "," + dLati1)
 		if (iLatDist > iDistance) return false
 
 		val iLngDist: Int =
 			(abs(dLong0 - dLong1) * cos(dLati0 * (Math.PI / 180)) * 111448.44724952266).toInt()
+		Log.d("WpNavi", "LngDiff=" + iLngDist)
 		if (iLngDist > iDistance) return false
 
 		return iDistance * iDistance >= iLatDist * iLatDist + iLngDist * iLngDist

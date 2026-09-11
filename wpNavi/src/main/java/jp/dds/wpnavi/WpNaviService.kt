@@ -6,408 +6,385 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.location.Location
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.Message
-import android.support.v4.app.NotificationCompat
 import android.util.Log
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GooglePlayServicesUtil
-import com.google.android.gms.common.api.GoogleApiClient
-import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks
-import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener
-import com.google.android.gms.location.LocationListener
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import java.io.DataOutputStream
 
-class WpNaviService : Service(), ConnectionCallbacks, OnConnectionFailedListener, LocationListener {
-	private var WayPoint: KmlManager? = null
+class WpNaviService : Service() {
+    private var WayPoint: KmlManager? = null
 
-	var iCurWayPoint: Int = 0
-	var iNextDistance: Int = 50
-	var iWaitTime: Int = 0
-	var bReverseOrder: Boolean = false
-	var bKillByRoot: Boolean = false
-	var bRestartTest: Boolean = false
+    var iCurWayPoint: Int = 0
+    var iNextDistance: Int = 50
+    var iWaitTime: Int = 0
+    var bReverseOrder: Boolean = false
+    var bKillByRoot: Boolean = false
+    var bRestartTest: Boolean = false
 
-	private var iRestartTime: Long = 0
-	private var m_iStatus = STATUS_IDLE
+    private var iRestartTime: Long = 0
+    private var m_iStatus = STATUS_IDLE
 
-	private var notificationManager: NotificationManager? = null
+    private var notificationManager: NotificationManager? = null
 
-	private var m_GoogleApiClient: GoogleApiClient? = null
-	var m_MsgHandler: Handler? = null
-	var m_Location: Location? = null
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationCallback: LocationCallback
 
-	/*** サービスハンドラ  */ /*
-	@Override
-	public void onCreate(){
-		if( bDebug ) Log.d( "WpNavi", "Service::onCreate" );
-	}
-	*/
-	override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-		if (!StartLocationUpdate()) {
-			// GPS 取得失敗
-			Toast.makeText(applicationContext, R.string.text_NoGPS, Toast.LENGTH_LONG).show()
-		} else {
-			WayPoint = KmlManager(intent.getIntArrayExtra("WayPoint")!!)
+    var m_MsgHandler: Handler? = null
+    var m_Location: Location? = null
 
-			if (bDebug) Log.d(
-				"WpNavi",
-				String.format(
-					"Service::onStartCommand:WP=%d num=%d",
-					iCurWayPoint, WayPoint!!.Size()
-				)
-			)
+    override fun onCreate() {
+        super.onCreate()
 
-			if (IsNetworkAlive()) {
-				// 電波があれば Google ナビ起動
-				StartNavi()
-			} else {
-				SetStatus(STATUS_NOSIG)
-			}
-		}
-		return START_NOT_STICKY
-	}
+        // FusedLocationProviderClient の初期化
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-	override fun onDestroy() {
-		if (bDebug) Log.d("WpNavi", "Service::onDestroy")
-		CancelNotification()
-		StopLocationUpdate()
-		SetStatus(STATUS_IDLE)
-	}
+        // 位置情報更新コールバックの定義
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                for (location in locationResult.locations) {
+                    onLocationChanged(location)
+                }
+            }
+        }
+    }
 
-	override fun onBind(intent: Intent): IBinder? {
-		if (bDebug) Log.d("WpNavi", "Service::onBind")
-		return WpNaviServiceLocalBinder()
-	}
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null || !intent.hasExtra("WayPoint")) {
+            StopNavi()
+            return START_NOT_STICKY
+        }
 
-	/*
-	@Override
-	public void onRebind( Intent intent ){
-		if( bDebug ) Log.d( "WpNavi", "Service::onRebind" );
-	}
-	*/
-	override fun onUnbind(intent: Intent): Boolean {
-		if (bDebug) Log.d("WpNavi", "Service::onUnbind")
-		m_MsgHandler = null
-		return false
-	}
+        if (!StartLocationUpdate()) {
+            // GPS 取得失敗
+            Toast.makeText(applicationContext, R.string.text_NoGPS, Toast.LENGTH_LONG).show()
+        } else {
+            val wpArray = intent.getIntArrayExtra("WayPoint")
+            if (wpArray != null) {
+                WayPoint = KmlManager(wpArray)
 
-	inner class WpNaviServiceLocalBinder : Binder() {
-		val service: WpNaviService
-			//サービスの取得
-			get() = this@WpNaviService
-	}
+                if (bDebug) Log.d(
+                    "WpNavi",
+                    String.format(
+                        "Service::onStartCommand:WP=%d num=%d",
+                        iCurWayPoint, WayPoint!!.Size()
+                    )
+                )
 
-	fun SetStatus(iStatus: Int) {
-		val iPrevStat = m_iStatus
-		m_iStatus = iStatus
-		if (bDebug) Log.d(
-			"WpNavi",
-			"Service status $iPrevStat->$iStatus"
-		)
+                if (IsNetworkAlive()) {
+                    // 電波があれば Google ナビ起動
+                    StartNavi()
+                } else {
+                    SetStatus(STATUS_NOSIG)
+                }
+            }
+        }
+        return START_STICKY
+    }
 
-		if (m_MsgHandler != null && iPrevStat != iStatus) {
-			val Msg = Message()
-			Msg.what = MSG_CHG_STATE
-			Msg.arg1 = iPrevStat
-			m_MsgHandler!!.sendMessage(Msg)
-		}
-	}
+    override fun onDestroy() {
+        if (bDebug) Log.d("WpNavi", "Service::onDestroy")
+        CancelNotification()
+        StopLocationUpdate()
+        SetStatus(STATUS_IDLE)
+        super.onDestroy()
+    }
 
-	fun GetStatus(): Int {
-		// サービス状態を返す
-		// ナビリスタートから 2秒以内は RESTART を返す
-		return if ((m_iStatus == STATUS_RUNNING &&
-					(System.currentTimeMillis() - iRestartTime) < (2000 + iWaitTime)
-					)
-		) STATUS_RESTART else m_iStatus
-	}
+    override fun onBind(intent: Intent): IBinder {
+        if (bDebug) Log.d("WpNavi", "Service::onBind")
+        return WpNaviServiceLocalBinder()
+    }
 
-	/*** ナビ起動  */
-	fun StartNavi() {
-		if (bDebug) Log.d(
-			"WpNavi", "StartNavi:WP" + iCurWayPoint + ":" +
-					WayPoint!!.GetLng(iCurWayPoint) + "," +
-					WayPoint!!.GetLat(iCurWayPoint)
-		)
+    override fun onUnbind(intent: Intent): Boolean {
+        if (bDebug) Log.d("WpNavi", "Service::onUnbind")
+        m_MsgHandler = null
+        return false
+    }
 
-		SetStatus(STATUS_RUNNING)
+    inner class WpNaviServiceLocalBinder : Binder() {
+        val service: WpNaviService
+            get() = this@WpNaviService
+    }
 
-		SetNotification()
-		iRestartTime = System.currentTimeMillis()
+    fun SetStatus(iStatus: Int) {
+        val iPrevStat = m_iStatus
+        m_iStatus = iStatus
+        if (bDebug) Log.d(
+            "WpNavi",
+            "Service status $iPrevStat->$iStatus"
+        )
 
-		KillGMaps()
-		try {
-			Thread.sleep(iWaitTime.toLong())
-		} catch (e: InterruptedException) {
-		}
+        if (m_MsgHandler != null && iPrevStat != iStatus) {
+            val Msg = Message()
+            Msg.what = MSG_CHG_STATE
+            Msg.arg1 = iPrevStat
+            m_MsgHandler!!.sendMessage(Msg)
+        }
+    }
 
-		// インテントを投げる
-		val i = Intent()
-		i.setAction(Intent.ACTION_VIEW)
-		i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-		i.setClassName(
-			"com.google.android.apps.maps",
-			"com.google.android.maps.driveabout.app.NavigationActivity"
-		)
-		val uri = Uri.parse(
-			"google.navigation:///?ll=" +
-					WayPoint!!.GetLat(iCurWayPoint) + "," +
-					WayPoint!!.GetLng(iCurWayPoint) + "&q=WP" + (iCurWayPoint + 1)
-		)
-		i.setData(uri)
-		startActivity(i)
-	}
+    fun GetStatus(): Int {
+        return if ((m_iStatus == STATUS_RUNNING &&
+                    (System.currentTimeMillis() - iRestartTime) < (2000 + iWaitTime)
+                    )
+        ) STATUS_RESTART else m_iStatus
+    }
 
-	fun StopNavi() {
-		SetStatus(STATUS_IDLE)
-		CancelNotification()
-		StopLocationUpdate()
-		stopSelf()
-	}
+    /*** ナビ起動  */
+    fun StartNavi() {
+        if (WayPoint == null || iCurWayPoint >= WayPoint!!.Size()) return
 
-	/*** GPS ハンドラ  */ // 電波なしナビモード開始・終了
-	fun StartLocationUpdate(): Boolean {
-		if (GooglePlayServicesUtil.isGooglePlayServicesAvailable(this) != ConnectionResult.SUCCESS) {
-			return false
-		}
+        if (bDebug) Log.d(
+            "WpNavi", "StartNavi:WP" + iCurWayPoint + ":" +
+                    WayPoint!!.GetLng(iCurWayPoint) + "," +
+                    WayPoint!!.GetLat(iCurWayPoint)
+        )
 
-		if (m_GoogleApiClient == null) {
-			m_GoogleApiClient = GoogleApiClient.Builder(this)
-				.addConnectionCallbacks(this)
-				.addOnConnectionFailedListener(this)
-				.addApi(LocationServices.API)
-				.build()
-		}
+        SetStatus(STATUS_RUNNING)
 
-		if (!m_GoogleApiClient!!.isConnected) m_GoogleApiClient!!.connect()
+        SetNotification()
+        iRestartTime = System.currentTimeMillis()
 
-		return true
-	}
+        KillGMaps()
+        try {
+            Thread.sleep(iWaitTime.toLong())
+        } catch (e: InterruptedException) {
+        }
 
-	// GPS 取得開始・終了
-	fun StartLocationUpdate2() {
-		val LocationRequest = LocationRequest()
+        // インテントを投げる
+        val i = Intent()
+        i.setAction(Intent.ACTION_VIEW)
+        i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        i.setClassName(
+            "com.google.android.apps.maps",
+            "com.google.android.maps.driveabout.app.NavigationActivity"
+        )
+        val uri = Uri.parse(
+            "google.navigation:///?ll=" +
+                    WayPoint!!.GetLat(iCurWayPoint) + "," +
+                    WayPoint!!.GetLng(iCurWayPoint) + "&q=WP" + (iCurWayPoint + 1)
+        )
+        i.setData(uri)
+        startActivity(i)
+    }
 
-		LocationRequest.setInterval(1000)
-		LocationRequest.setFastestInterval(1000)
-		LocationRequest.setPriority(com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY)
+    fun StopNavi() {
+        SetStatus(STATUS_IDLE)
+        CancelNotification()
+        StopLocationUpdate()
+        stopSelf()
+    }
 
-		LocationServices.FusedLocationApi.requestLocationUpdates(
-			m_GoogleApiClient, LocationRequest, this
-		)
-	}
+    /*** GPS ハンドラ  */
+    fun StartLocationUpdate(): Boolean {
+        if (GoogleApiAvailability.getInstance()
+                .isGooglePlayServicesAvailable(this) != ConnectionResult.SUCCESS
+        ) {
+            return false
+        }
+        StartLocationUpdate2()
+        return true
+    }
 
-	override fun onConnected(arg0: Bundle?) {
-		if (bDebug) Log.d("WpNavi", "Service::onConnected")
-		StartLocationUpdate2()
-	}
+    fun StartLocationUpdate2() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+            .setMinUpdateIntervalMillis(1000)
+            .build()
 
-	fun StopLocationUpdate() {
-		if (m_GoogleApiClient != null) {
-			if (m_GoogleApiClient!!.isConnected) {
-				LocationServices.FusedLocationApi.removeLocationUpdates(
-					m_GoogleApiClient, this
-				)
-			}
-			m_GoogleApiClient!!.disconnect()
-		}
-	}
+        try {
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        } catch (e: SecurityException) {
+            if (bDebug) Log.e("WpNavi", "Location permission missing", e)
+        }
+    }
 
-	override fun onConnectionFailed(arg0: ConnectionResult) {
-		if (bDebug) Log.d("WpNavi", "Service::onConnectionFailed")
-	}
+    fun StopLocationUpdate() {
+        try {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        } catch (e: Exception) {
+            if (bDebug) Log.e("WpNavi", "Failed to remove location updates", e)
+        }
+    }
 
-	fun onDisconnected() {
-		if (bDebug) Log.d("WpNavi", "Service::onDisconnected")
-	}
+    private fun onLocationChanged(location: Location) {
+        m_Location = location
 
-	override fun onConnectionSuspended(arg0: Int) {
-		if (bDebug) Log.d("WpNavi", "Service::onConnectionSuspended")
-	}
+        if (WayPoint == null) return
 
-	override fun onLocationChanged(location: Location) {
-		m_Location = location
+        // 経由地に近づいたらナビ起動
+        val bWpReached = ((bRestartTest && (((iDebugNavStartCnt + 1) and 0xF).also {
+            iDebugNavStartCnt = it
+        }) == 0) ||
+                WayPoint!!.InDistance(
+                    iNextDistance,
+                    iCurWayPoint,
+                    location.longitude,
+                    location.latitude
+                )
+                )
 
+        if (bDebug) Log.d(
+            "WpNavi",
+            ("st:" + m_iStatus
+                    + " wp:" + iCurWayPoint
+                    + " r:" + bWpReached
+                    + " d:" + (WayPoint!!.Distance(
+                iCurWayPoint,
+                location.longitude,
+                location.latitude
+            ).toInt())
+                    + " GPS lon=" + location.longitude + " lat=" + location.latitude)
+        )
 
-		// 経由地に近づいたらナビ起動
-		val bWpReached = ((bRestartTest && (((iDebugNavStartCnt + 1) and 0xF).also {
-			iDebugNavStartCnt = it
-		}) == 0) ||
-				WayPoint!!.InDistance(
-					iNextDistance,
-					iCurWayPoint,
-					location.longitude,
-					location.latitude
-				)
-				)
+        // Wp# 更新，最終 Wp に到達したら終了
+        if (bWpReached && (if (bReverseOrder) --iCurWayPoint < 0 else ++iCurWayPoint >= WayPoint!!.Size())) {
+            if (bDebug) Log.d("WpNavi", "Destination reached")
+            StopNavi()
+        } else if ((bWpReached || m_iStatus == STATUS_NOSIG) && IsNetworkAlive()) {
+            if (bDebug) Log.d("WpNavi", "Network re-connected")
+            StartNavi()
+        } else if (bWpReached && m_iStatus == STATUS_RUNNING) {
+            if (bDebug) Log.d("WpNavi", "Network disconnected")
+            SetStatus(STATUS_NOSIG)
+            CancelNotification()
 
-		if (bDebug) Log.d(
-			"WpNavi",
-			("st:" + m_iStatus
-					+ " wp:" + iCurWayPoint
-					+ " r:" + bWpReached
-					+ " d:" + (WayPoint!!.Distance(
-				iCurWayPoint,
-				location.longitude,
-				location.latitude
-			).toInt())
-					+ " GPS lon=" + location.longitude + " lat=" + location.latitude)
-		)
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.setClassName("jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity")
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } else if (m_iStatus == STATUS_NOSIG && m_MsgHandler != null) {
+            if (bDebug) Log.d("WpNavi", "normal update")
+            val Msg = Message()
+            Msg.what = if (bWpReached) MSG_UPDATE_WP else MSG_UPDATE
+            m_MsgHandler!!.sendMessage(Msg)
+        }
+    }
 
+    // 電波状態取得
+    private fun IsNetworkAlive(): Boolean {
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val info = connectivityManager.activeNetworkInfo
+        return info != null && info.isConnected
+    }
 
-		// Wp# 更新，最終 Wp に到達したら終了
-		if (bWpReached && (if (bReverseOrder) --iCurWayPoint < 0 else ++iCurWayPoint >= WayPoint!!.Size()
-					)
-		) {
-			if (bDebug) Log.d("WpNavi", "Destination reached")
-			StopNavi()
-		} else if ((bWpReached || m_iStatus == STATUS_NOSIG) && IsNetworkAlive()) {
-			// 電波があって，and
-			//   Wp に到達する or
-			//   いままで NOSIG だった (電波が復活した)
-			// であるなら，次のナビを起動する
-			if (bDebug) Log.d("WpNavi", "Network re-connected")
+    /*** Notification  */
+    fun SetNotification() {
+        val strNotifyMsg =
+            String.format(resources.getText(R.string.text_Activated) as String, iCurWayPoint + 1)
 
-			StartNavi()
-		} else if (bWpReached && m_iStatus == STATUS_RUNNING) {
-			// STATUS_RUNNING で WP に到達した時に電波がない状態．
-			// Google ナビを閉じて WpNavi を前面に出す．
-			if (bDebug) Log.d("WpNavi", "Network disconnected")
+        if (notificationManager == null) {
+            notificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        }
 
-			SetStatus(STATUS_NOSIG)
-			CancelNotification()
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setClassName("jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity")
+        intent.putExtra("quit_service", true)
 
-			val intent = Intent(Intent.ACTION_VIEW)
-			intent.setClassName("jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity")
-			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-			startActivity(intent)
-		} else if (m_iStatus == STATUS_NOSIG && m_MsgHandler != null) {
-			// 位置表示更新
-			if (bDebug) Log.d("WpNavi", "normal update")
+        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_UPDATE_CURRENT
+        }
 
-			val Msg = Message()
-			Msg.what = if (bWpReached) MSG_UPDATE_WP else MSG_UPDATE
-			m_MsgHandler!!.sendMessage(Msg)
-		}
-	}
+        val contentIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags)
+        val channelId = "wpnavi_service_channel"
 
-	// 電波状態取得
-	private fun IsNetworkAlive(): Boolean {
-		val Info = (getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager)
-			.activeNetworkInfo
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "WpNavi Service",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            notificationManager!!.createNotificationChannel(channel)
+        }
 
-		return Info != null && Info.isConnected
-		//return false && Info != null && Info.isConnected();
-		//return iCurWayPoint < 3;
-	}
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentIntent(contentIntent)
+            .setTicker(strNotifyMsg)
+            .setSmallIcon(R.drawable.ic_notify)
+            .setContentTitle(strNotifyMsg)
+            .setContentText(resources.getText(R.string.app_name))
+            .setWhen(System.currentTimeMillis())
+            .setAutoCancel(false)
+            .setOngoing(true)
+            .build()
 
-	/*** Notification  */
-	fun SetNotification() {
-		val strNotifyMsg =
-			String.format(resources.getText(R.string.text_Activated) as String, iCurWayPoint + 1)
+        notificationManager!!.notify(R.string.app_name, notification)
 
-		// notification 設定
-		if (notificationManager == null) {
-			notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-		}
+        // Android 14 (API 34) 対応の startForeground 呼び出し
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceCompat.startForeground(
+                this,
+                R.string.app_name,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            )
+        } else {
+            startForeground(R.string.app_name, notification)
+        }
+    }
 
-		val intent = Intent(Intent.ACTION_VIEW)
-		intent.setClassName("jp.dds.wpnavi", "jp.dds.wpnavi.WpNaviActivity")
-		intent.putExtra("quit_service", true)
+    fun CancelNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
 
-		// Android 12 (API 31) 以降向けの FLAG_IMMUTABLE 対応
-		val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-		} else {
-			PendingIntent.FLAG_UPDATE_CURRENT
-		}
+        if (notificationManager != null) notificationManager!!.cancelAll()
+        notificationManager = null
+    }
 
-		// intentの設定
-		val contentIntent =
-			PendingIntent.getActivity(this, 0, intent, pendingIntentFlags)
+    /*** Kill Google Maps  */
+    fun KillGMaps() {
+        if (!bKillByRoot) return
+        try {
+            val process = Runtime.getRuntime().exec("su")
+            val dos = DataOutputStream(process.outputStream)
+            dos.writeBytes("/system/bin/killall com.google.android.apps.maps\n")
+            dos.close()
+            process.waitFor()
+        } catch (e: Exception) {
+            if (bDebug) Log.e("WpNavi", "Failed to kill Google Maps via root", e)
+        }
+    }
 
-		val channelId = "wpnavi_service_channel"
+    companion object {
+        private val bDebug: Boolean = WpNaviActivity.bDebug
 
-		val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			// Android 8.0 (API 26) 以上は標準の Notification.Builder を使用
-			val channel = NotificationChannel(
-				channelId,
-				"WpNavi Service",
-				NotificationManager.IMPORTANCE_LOW
-			)
-			notificationManager!!.createNotificationChannel(channel)
+        const val STATUS_IDLE: Int = 0
+        const val STATUS_RESTART: Int = 1
+        const val STATUS_RUNNING: Int = 2
+        const val STATUS_NOSIG: Int = 3
 
-			android.app.Notification.Builder(this, channelId)
-				.setContentIntent(contentIntent)
-				.setTicker(strNotifyMsg)
-				.setSmallIcon(R.drawable.ic_notify)
-				.setContentTitle(strNotifyMsg)
-				.setContentText(resources.getText(R.string.app_name))
-				.setWhen(System.currentTimeMillis())
-				.setAutoCancel(false)
-				.setOngoing(true)
-				.build()
-		} else {
-			// Android 7.1 以下は Support Library の Builder を使用
-			@Suppress("DEPRECATION")
-			NotificationCompat.Builder(this@WpNaviService)
-				.setContentIntent(contentIntent)
-				.setTicker(strNotifyMsg)
-				.setSmallIcon(R.drawable.ic_notify)
-				.setContentTitle(strNotifyMsg)
-				.setContentText(resources.getText(R.string.app_name))
-				.setWhen(System.currentTimeMillis())
-				.setAutoCancel(false)
-				.setOngoing(true)
-				.build()
-		}
+        const val MSG_UPDATE: Int = 0
+        const val MSG_UPDATE_WP: Int = 1
+        const val MSG_CHG_STATE: Int = 2
 
-		notificationManager!!.notify(R.string.app_name, notification)
-	}
-
-	fun CancelNotification() {
-		if (notificationManager != null) notificationManager!!.cancelAll()
-		notificationManager = null
-	}
-
-	/*** Kill Google Maps  */
-	fun KillGMaps() {
-		val process: Process
-		if (!bKillByRoot) return
-		try {
-			process = Runtime.getRuntime().exec("su")
-			val dos = DataOutputStream(process.outputStream)
-			dos.writeBytes("/system/bin/killall com.google.android.apps.maps\n")
-			dos.close()
-
-			process.waitFor()
-		} catch (e: Exception) {
-		}
-	}
-
-	companion object {
-		private val bDebug: Boolean = WpNaviActivity.Companion.bDebug
-
-		const val STATUS_IDLE: Int = 0
-		const val STATUS_RESTART: Int = 1
-		const val STATUS_RUNNING: Int = 2
-		const val STATUS_NOSIG: Int = 3
-
-		const val MSG_UPDATE: Int = 0
-		const val MSG_UPDATE_WP: Int = 1
-		const val MSG_CHG_STATE: Int = 2
-
-		private var iDebugNavStartCnt = 0
-	}
+        private var iDebugNavStartCnt = 0
+    }
 }
