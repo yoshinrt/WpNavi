@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Binder
@@ -20,14 +22,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
-import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GoogleApiAvailability
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
 import java.io.DataOutputStream
 
 class WpNaviService : Service() {
@@ -45,8 +39,8 @@ class WpNaviService : Service() {
 
     private var notificationManager: NotificationManager? = null
 
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
+    private lateinit var locationManager: LocationManager
+    private lateinit var locationListener: LocationListener
 
     var m_MsgHandler: Handler? = null
     var m_Location: Location? = null
@@ -54,16 +48,12 @@ class WpNaviService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        // FusedLocationProviderClient の初期化
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        // LocationManager の初期化
+        locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        // 位置情報更新コールバックの定義
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                for (location in locationResult.locations) {
-                    onLocationChanged(location)
-                }
-            }
+        // 位置情報更新リスナーの定義
+        locationListener = LocationListener { location ->
+            onLocationChanged(location)
         }
     }
 
@@ -194,9 +184,8 @@ class WpNaviService : Service() {
 
     /*** GPS ハンドラ  */
     fun StartLocationUpdate(): Boolean {
-        if (GoogleApiAvailability.getInstance()
-                .isGooglePlayServicesAvailable(this) != ConnectionResult.SUCCESS
-        ) {
+        // GPSプロバイダが有効になっているかチェック
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             return false
         }
         StartLocationUpdate2()
@@ -204,14 +193,13 @@ class WpNaviService : Service() {
     }
 
     fun StartLocationUpdate2() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
-            .setMinUpdateIntervalMillis(1000)
-            .build()
-
         try {
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
+            // GPS_PROVIDER から直接位置情報アップデートを受け取る
+            locationManager.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                1000L, // 最小更新間隔 (ms)
+                0f,    // 最小更新距離 (m)
+                locationListener,
                 Looper.getMainLooper()
             )
         } catch (e: SecurityException) {
@@ -221,7 +209,7 @@ class WpNaviService : Service() {
 
     fun StopLocationUpdate() {
         try {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
+            locationManager.removeUpdates(locationListener)
         } catch (e: Exception) {
             if (bDebug) Log.e("WpNavi", "Failed to remove location updates", e)
         }
@@ -244,18 +232,25 @@ class WpNaviService : Service() {
                 )
                 )
 
-        if (bDebug) Log.d(
-            "WpNavi",
-            ("st:" + m_iStatus
-                    + " wp:" + iCurWayPoint
-                    + " r:" + bWpReached
-                    + " d:" + (WayPoint!!.Distance(
-                iCurWayPoint,
-                location.longitude,
-                location.latitude
-            ).toInt())
-                    + " GPS lon=" + location.longitude + " lat=" + location.latitude)
-        )
+        if (bDebug){
+            val isMock = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                location.isMock
+            } else {
+                @Suppress("DEPRECATION")
+                location.isFromMockProvider
+            }
+
+            Log.d(
+                "WpNavi",
+                ("st:" + m_iStatus
+                        + " wp:" + iCurWayPoint
+                        + " r:" + bWpReached
+                        + " d:" + (WayPoint!!.Distance(iCurWayPoint, location.longitude, location.latitude).toInt())
+                        + " GPS lon=" + location.longitude + " lat=" + location.latitude
+                        + " mock:$isMock"
+                        )
+            )
+        }
 
         // Wp# 更新，最終 Wp に到達したら終了
         if (bWpReached && (if (bReverseOrder) --iCurWayPoint < 0 else ++iCurWayPoint >= WayPoint!!.Size())) {
