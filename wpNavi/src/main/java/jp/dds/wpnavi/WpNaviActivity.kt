@@ -47,7 +47,9 @@ import jp.dds.dds_lib.BuildConfig
 import jp.dds.dds_lib.FileOpenDialog
 import jp.dds.dds_lib.FileOpenDialog.FileOpenDialogListener
 import jp.dds.wpnavi.WpNaviService.WpNaviServiceLocalBinder
+import java.io.DataOutputStream
 import java.io.File
+import kotlin.concurrent.thread
 
 class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCallback {
 	private var m_iCurWayPoint = 0
@@ -73,6 +75,9 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 		// プリファレンス
 		val pref = PreferenceManager.getDefaultSharedPreferences(this)
 		m_Pref = pref
+
+		// App Links 強制設定の確認と実行
+		checkAndSetAppLinks()
 
 		setContentView(R.layout.main)
 
@@ -101,6 +106,45 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 		m_fNosigZoom = pref.getFloat("key_nosig_zoom", 16f)
 	}
 
+	/**
+	 * 隠し preference が未設定の場合に root 権限で App Links 設定を行い、設定済みにする
+	 */
+	private fun checkAndSetAppLinks() {
+		val pref = m_Pref ?: return
+		val isConfigured = pref.getBoolean("key_app_links_configured", false)
+
+		if (!isConfigured) {
+			val myPackage = packageName
+			val domains = arrayOf(
+				"www.google.com"
+			)
+
+			if(setAppLinksAsRoot(myPackage, *domains)) {
+				if (bDebug) Log.d("WpNavi", "App Links root configuration succeeded.")
+				pref.edit().putBoolean("key_app_links_configured", true).apply()
+			} else {
+				if (bDebug) Log.e("WpNavi", "App Links root configuration failed.")
+			}
+		}
+	}
+
+	/**
+	 * root 権限 (su) で App Links のドメインリンク強制設定を実行する
+	 */
+	private fun setAppLinksAsRoot(packageName: String, vararg domains: String): Boolean {
+		return try {
+			val domainArgs = domains.joinToString(" ")
+			val cmd = "pm set-app-links --package $packageName 1 $domainArgs"
+
+			val process = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+			val exitCode = process.waitFor()
+
+			exitCode == 0
+		} catch (e: Exception) {
+			if (bDebug) Log.e("WpNavi", "Error setting app links as root", e)
+			false
+		}
+	}
 	private fun checkNotificationPermission() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 			if (ContextCompat.checkSelfPermission(
