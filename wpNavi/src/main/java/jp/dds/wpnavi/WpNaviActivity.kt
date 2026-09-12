@@ -468,41 +468,11 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 			return true
 		}
 
+		// URL フィルタに引っかかった
 		val strUrl = intent.dataString ?: return false
-
-		// mailto: インテントのチェック
-		if (strUrl.startsWith("mailto:", ignoreCase = true)) {
-			// URLエンコードされた文字をデコードして判定
-			val decodedUrl = try {
-				java.net.URLDecoder.decode(strUrl, "UTF-8")
-			} catch (e: Exception) {
-				strUrl
-			}
-
-			// マイマップのURLが含まれていない場合は、他のメールアプリ等に転送して終了
-			if (!decodedUrl.contains("google.com/maps/d")) {
-				forwardToOtherApps(intent)
-				finish() // 自身のActivityを閉じる
-				return false
-			}
-
-			DownloadURL(decodedUrl)
-		}
+		if (strUrl != null) return DownloadURL(strUrl)
 
 		return false
-	}
-
-	// 対象外の mailto インテントを他アプリに流す処理
-	private fun forwardToOtherApps(originalIntent: Intent) {
-		try {
-			val newIntent = Intent(originalIntent.action, originalIntent.data).apply {
-				setPackage(null)
-			}
-			val chooser = Intent.createChooser(newIntent, null)
-			startActivity(chooser)
-		} catch (e: Exception) {
-			Log.e("WpNavi", "Failed to forward intent", e)
-		}
 	}
 
 	fun DownloadURL(strUrl: String): Boolean {
