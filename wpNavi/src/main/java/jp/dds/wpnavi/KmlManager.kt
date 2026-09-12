@@ -2,9 +2,9 @@ package jp.dds.wpnavi
 
 import android.util.Log
 import android.util.Xml
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.PolylineOptions
 import jp.dds.dds_lib.BuildConfig
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.overlay.Polyline
 import org.xmlpull.v1.XmlPullParser
 import java.io.FileInputStream
 import java.io.FileNotFoundException
@@ -29,8 +29,8 @@ class KmlManager {
 		Points = ary
 	}
 
-	fun GetPoint(idx: Int): LatLng {
-		return LatLng(GetLat(idx), GetLng(idx))
+	fun GetPoint(idx: Int): GeoPoint {
+		return GeoPoint(GetLat(idx), GetLng(idx))
 	}
 
 	fun GetLng(idx: Int): Double {
@@ -90,16 +90,22 @@ class KmlManager {
 	inner class KmlInfo {
 		@JvmField
 		var m_strTitle: String? = null
+
 		@JvmField
 		var m_dMinLng: Double = 1000.0
+
 		@JvmField
 		var m_dMinLat: Double = 1000.0
+
 		@JvmField
 		var m_dMaxLng: Double = -1000.0
+
 		@JvmField
 		var m_dMaxLat: Double = -1000.0
+
 		@JvmField
-		var m_Polyline: PolylineOptions = PolylineOptions()
+		var m_Polyline: Polyline = Polyline()
+
 		@JvmField
 		var m_iErrorCode: Int = 0
 	}
@@ -212,7 +218,7 @@ class KmlManager {
 
 								if (c1 != c2) {
 									ParseCoordinate(str.substring(c1, c2), Info, Point)
-									Info.m_Polyline.add(LatLng(Point[1], Point[0]))
+									Info.m_Polyline.addPoint(GeoPoint(Point[1], Point[0]))
 								}
 								c1 = c2 + 1
 							} while (c1 < str.length)
@@ -248,7 +254,7 @@ class KmlManager {
 		}
 
 		// 一応数チェック
-		if (TmpPoints.size == 0 || Info.m_Polyline.points.size == 0) {
+		if (TmpPoints.size == 0 || Info.m_Polyline.actualPoints.size == 0) {
 			Info.m_iErrorCode = R.string.text_InvalidKMLFormat
 			return Info
 		}
@@ -260,7 +266,7 @@ class KmlManager {
 		}
 
 		// WP を PolyLine にそってソートする
-		SortWp(Info.m_Polyline.points)
+		SortWp(Info.m_Polyline.actualPoints)
 
 		return Info
 	}
@@ -281,7 +287,7 @@ class KmlManager {
 		}
 	}
 
-	private fun SortWp(Line: List<LatLng>) {
+	private fun SortWp(Line: List<GeoPoint>) {
 		// 原点
 		val dLng0 = Line[0].longitude
 		val dLat0 = Line[0].latitude
@@ -332,8 +338,8 @@ class KmlManager {
 				) continue
 
 				// L1<-L0 と Wp<-L0 がなす角が 90度以上なら，距離は L0～Wp となる
-				if (-x01 * xp0 - y01 * yp0 <= 0) {
-					if (xp0 * xp0 + yp0 * yp0 <= iOnlineDistPow2) {
+				if (-x01.toDouble() * xp0 - y01.toDouble() * yp0 <= 0) {
+					if (xp0.toDouble() * xp0 + yp0.toDouble() * yp0 <= iOnlineDistPow2) {
 						if (bDebug) Log.d(
 							"WpNavi", String.format(
 								"WpSortP[%d]: %d<->%d, %f",
@@ -348,8 +354,8 @@ class KmlManager {
 						break
 					}
 				} else {
-					if (x01 * xp1 + y01 * yp1 >= 0 &&
-						abs(x01 * yp1 - y01 * xp1) <= iOnlineDist * sqrt((x01 * x01 + y01 * y01).toDouble()).toInt()
+					if (x01.toDouble() * xp1 + y01.toDouble() * yp1 >= 0 &&
+						abs(x01.toDouble() * yp1 - y01.toDouble() * xp1) <= iOnlineDist * sqrt((x01 * x01 + y01 * y01).toDouble()).toInt()
 					) {
 						if (bDebug) Log.d(
 							"WpNavi", String.format(
@@ -357,7 +363,7 @@ class KmlManager {
 								iIdxLine,
 								iSortedIdx,
 								iIdxWp,
-								abs(x01 * yp1 - y01 * xp1) / sqrt((x01 * x01 + y01 * y01).toDouble())
+								abs(x01.toDouble() * yp1 - y01.toDouble() * xp1) / sqrt((x01 * x01 + y01 * y01).toDouble())
 							)
 						)
 						Swap(iSortedIdx, iIdxWp, iWpX, iWpY)

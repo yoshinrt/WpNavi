@@ -12,6 +12,7 @@ import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.location.Location
 import android.net.Uri
@@ -34,32 +35,33 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
-import com.google.android.gms.maps.model.Marker
-import com.google.android.gms.maps.model.MarkerOptions
 import jp.dds.dds_lib.BuildConfig
 import jp.dds.wpnavi.WpNaviService.WpNaviServiceLocalBinder
+import org.osmdroid.config.Configuration as OsmConfiguration
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
 import java.io.FileOutputStream
 
-class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
+class WpNaviActivity : AppCompatActivity() {
 	private var m_iCurWayPoint = 0
 	private val m_WayPoint = KmlManager()
 	private var m_Pref: SharedPreferences? = null
 	private var m_strKmlFile: String? = null
 	private var m_bDownloading = false
 	private var m_bQuitService = false
-	private var m_fZoom = 0f
-	private var m_fNosigZoom = 0f
+	private var m_fZoom = 0.0
+	private var m_fNosigZoom = 16.0
 
-	private var m_Map: GoogleMap? = null
+	private var m_MapView: MapView? = null
+	private var m_LocationOverlay: MyLocationNewOverlay? = null
+	private var m_RoutePolyline: Polyline? = null
 	private val m_Markers = ArrayList<Marker>()
 
 	// Android 標準ファイルピッカー (SAF) のランチャー
@@ -76,13 +78,18 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		}
 	}
 
-	/*** Activity management  */
+	/*** Activity management ***/
 	@Suppress("unused")
 	@SuppressLint("InlinedApi")
 	public override fun onCreate(savedInstanceState: Bundle?) {
 		if (bDebug) Log.d("WpNavi", "WpNavi::onCreate")
 
 		super.onCreate(savedInstanceState)
+
+		// osmdroid の設定（HTTP ユーザーエージェントなどの登録）
+		val ctx = applicationContext
+		OsmConfiguration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx))
+		OsmConfiguration.getInstance().userAgentValue = packageName
 
 		// プリファレンス
 		val pref = PreferenceManager.getDefaultSharedPreferences(this)
@@ -104,7 +111,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 			mActionBar?.setBackgroundDrawable(ColorDrawable(-0x80000000))
 		}
 
-		// ★ Android 13 (API 33) 以降の通知パーミッション要求処理
+		// 通知パーミッション確認
 		checkNotificationPermission()
 
 		DoIntent(intent)
@@ -114,8 +121,11 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		// 設定ロード
 		m_iCurWayPoint = pref.getInt("key_waypoint", 0)
 		m_strKmlFile = pref.getString("key_kml_file", null)
-		m_fZoom = pref.getFloat("key_gmap_zoom", 1f)
-		m_fNosigZoom = pref.getFloat("key_nosig_zoom", 16f)
+		m_fZoom = pref.getFloat("key_gmap_zoom", 1f).toDouble()
+		m_fNosigZoom = pref.getFloat("key_nosig_zoom", 16f).toDouble()
+
+		// 地図初期化
+		SetupMap()
 	}
 
 	/**
@@ -127,9 +137,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 
 		if (!isConfigured) {
 			val myPackage = packageName
-			val domains = arrayOf(
-				"www.google.com"
-			)
+			val domains = arrayOf("www.google.com")
 
 			if (setAppLinksAsRoot(myPackage, *domains)) {
 				if (bDebug) Log.d("WpNavi", "App Links root configuration succeeded.")
@@ -177,40 +185,35 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 	override fun onResume() {
 		if (bDebug) Log.d("WpNavi", "WpNavi::onResume")
 		super.onResume()
+		m_MapView?.onResume()
 		BindService()
-	}
-
-	override fun onWindowFocusChanged(hasFocus: Boolean) {
-		super.onWindowFocusChanged(hasFocus)
-
-		if (bDebug) Log.d("WpNavi", "WpNavi::onWindowFocusChanged")
-		SetupMapIfNeeded()
 	}
 
 	override fun onPause() {
 		if (bDebug) Log.d("WpNavi", "WpNavi::onPause")
 		super.onPause()
 
+		m_MapView?.onPause()
+
 		// サービス停止
-		val iStatus =
-			if (mService != null) mService!!.GetStatus() else WpNaviService.STATUS_IDLE
+		val iStatus = if (mService != null) mService!!.GetStatus() else WpNaviService.STATUS_IDLE
 		UnbindService()
 
 		m_Pref?.edit()?.let { ed ->
 			// GMap カメラ位置保存
-			if (m_Map != null) {
-				val cam = m_Map!!.cameraPosition
+			if (m_MapView != null) {
+				val mapCenter = m_MapView!!.mapCenter
 
 				if (iStatus != WpNaviService.STATUS_NOSIG) {
-					m_fZoom = cam.zoom
+					m_fZoom = m_MapView!!.zoomLevelDouble
 				}
 
-				ed.putFloat("key_gmap_lng", cam.target.longitude.toFloat())
-				ed.putFloat("key_gmap_lat", cam.target.latitude.toFloat())
-				ed.putFloat("key_gmap_zoom", m_fZoom)
+				ed.putFloat("key_gmap_lng", mapCenter.longitude.toFloat())
+				ed.putFloat("key_gmap_lat", mapCenter.latitude.toFloat())
+				ed.putFloat("key_gmap_zoom", m_fZoom.toFloat())
 				ed.putInt("key_waypoint", m_iCurWayPoint)
 				ed.putString("key_kml_file", m_strKmlFile)
-				ed.putFloat("key_nosig_zoom", m_fNosigZoom)
+				ed.putFloat("key_nosig_zoom", m_fNosigZoom.toFloat())
 			}
 
 			ed.commit()
@@ -260,16 +263,40 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		if (bDebug) Log.d("WpNavi", "WpNavi::onConfigurationChanged")
 	}
 
-	/*** Google Maps  */
-	private fun SetupMapIfNeeded() {
-		if (m_Map != null) return
+	/*** OpenStreetMap (osmdroid) セットアップ ***/
+	private fun SetupMap() {
+		m_MapView = findViewById(R.id.map)
+		m_MapView?.run {
+			setTileSource(TileSourceFactory.MAPNIK)
+			setMultiTouchControls(true)
 
-		(supportFragmentManager.findFragmentById(R.id.map) as? SupportMapFragment)?.getMapAsync(this)
+			val pref = m_Pref
+			if (pref != null) {
+				val controller = controller
+				controller.setZoom(m_fZoom)
+				controller.setCenter(
+					GeoPoint(
+						pref.getFloat("key_gmap_lat", 0f).toDouble(),
+						pref.getFloat("key_gmap_lng", 0f).toDouble()
+					)
+				)
+			}
+		}
+
+		CheckLocationPermission()
+
+		val tv = TypedValue()
+		if (theme.resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
+			val topPadding =
+				TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
+			val bottomPadding = findViewById<View>(R.id.buttonPrevWp).height
+			m_MapView?.setPadding(0, topPadding, 0, bottomPadding)
+		}
+
+		if (m_strKmlFile != null) LoadKML(m_strKmlFile, m_iCurWayPoint)
 	}
 
-	override fun onMapReady(googleMap: GoogleMap) {
-		m_Map = googleMap
-
+	private fun CheckLocationPermission() {
 		// 位置情報のパーミッション確認
 		if (ContextCompat.checkSelfPermission(
 				this,
@@ -280,7 +307,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 				Manifest.permission.ACCESS_COARSE_LOCATION
 			) == PackageManager.PERMISSION_GRANTED
 		) {
-			m_Map!!.isMyLocationEnabled = true
+			EnableMyLocationOverlay()
 		} else {
 			ActivityCompat.requestPermissions(
 				this,
@@ -291,50 +318,13 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 				REQUEST_LOCATION_PERMISSION
 			)
 		}
+	}
 
-		val ui = m_Map!!.uiSettings
-
-		ui.isZoomControlsEnabled = true
-		ui.isMyLocationButtonEnabled = true
-		ui.isScrollGesturesEnabled = true
-		ui.isZoomGesturesEnabled = true
-
-		// 渋滞情報
-		val pref = m_Pref
-		if (pref != null) {
-			m_Map!!.isTrafficEnabled = pref.getBoolean("key_traffic_info", false)
-
-			// Map 移動
-			val cameraPos = CameraPosition.Builder()
-				.target(
-					LatLng(
-						pref.getFloat("key_gmap_lat", 0f).toDouble(),
-						pref.getFloat("key_gmap_lng", 0f).toDouble()
-					)
-				)
-				.zoom(m_fZoom)
-				.bearing(0f)
-				.build()
-			m_Map!!.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPos))
-		}
-
-		// マーカークリックリスナー登録
-		m_Map!!.setOnMarkerClickListener { marker ->
-			SetCurWayPoint(marker.title.toString().substring(2).toInt() - 1)
-			false
-		}
-
-		val tv = TypedValue()
-		if (theme.resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
-			m_Map!!.setPadding(
-				0,
-				TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics),
-				0,
-				findViewById<View>(R.id.buttonPrevWp).height
-			)
-		}
-
-		if (m_strKmlFile != null) LoadKML(m_strKmlFile, m_iCurWayPoint)
+	private fun EnableMyLocationOverlay() {
+		val mapView = m_MapView ?: return
+		m_LocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mapView)
+		m_LocationOverlay?.enableMyLocation()
+		mapView.overlays.add(m_LocationOverlay)
 	}
 
 	override fun onRequestPermissionsResult(
@@ -345,19 +335,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 		if (requestCode == REQUEST_LOCATION_PERMISSION) {
 			if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-				if (m_Map != null) {
-					if (ContextCompat.checkSelfPermission(
-							this,
-							Manifest.permission.ACCESS_FINE_LOCATION
-						) == PackageManager.PERMISSION_GRANTED
-						|| ContextCompat.checkSelfPermission(
-							this,
-							Manifest.permission.ACCESS_COARSE_LOCATION
-						) == PackageManager.PERMISSION_GRANTED
-					) {
-						m_Map!!.isMyLocationEnabled = true
-					}
-				}
+				EnableMyLocationOverlay()
 			}
 		} else if (requestCode == REQUEST_NOTIFICATION_PERMISSION) {
 			if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -369,29 +347,28 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 	}
 
 	fun SetCurWayPoint(iNewWp: Int) {
-		if (m_Map != null && m_Markers.isNotEmpty()) {
-			// 元 CurWP のアイコンを blue にする
-			m_Markers[m_iCurWayPoint].setIcon(
-				BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)
-			)
-
-			m_Markers[iNewWp].setIcon(
-				BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)
-			)
+		if (m_Markers.isNotEmpty()) {
+			m_Markers.getOrNull(m_iCurWayPoint)?.let { marker ->
+				marker.icon = null
+			}
+			m_Markers.getOrNull(iNewWp)?.let { _ ->
+				// 必要に応じて選択時のマーカー表示処理を追記
+			}
 		}
 		m_iCurWayPoint = iNewWp
+		m_MapView?.invalidate()
 	}
 
 	fun SetMoveCurWayPoint(iNewWp: Int) {
-		if (m_Map != null && m_Markers.isNotEmpty()) {
+		if (m_Markers.isNotEmpty() && iNewWp < m_Markers.size) {
 			SetCurWayPoint(iNewWp)
-			m_Markers[iNewWp].showInfoWindow()
-
-			m_Map!!.animateCamera(CameraUpdateFactory.newLatLng(m_Markers[iNewWp].position))
+			val targetMarker = m_Markers[iNewWp]
+			targetMarker.showInfoWindow()
+			m_MapView?.controller?.animateTo(targetMarker.position)
 		}
 	}
 
-	/*** Load KML  */
+	/*** Load KML ***/
 	fun LoadKML(strKmlFile: String?, iWayPoint: Int): Boolean {
 		val nextDist = m_Pref?.getInt("key_NextDistance", 50) ?: 50
 		val Info = m_WayPoint.LoadKML(strKmlFile, nextDist)
@@ -401,40 +378,68 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 			return false
 		}
 
-		m_Map!!.clear()
+		val mapView = m_MapView ?: return false
+
+		// 既存オーバーレイ削除
+		m_Markers.forEach { mapView.overlays.remove(it) }
 		m_Markers.clear()
+		m_RoutePolyline?.let { mapView.overlays.remove(it) }
+
 		m_iCurWayPoint = 0
 		m_strKmlFile = strKmlFile
 
 		// タイトル設定
-		if (Info.m_strTitle != null) {
-			title = Info.m_strTitle
-		} else {
-			setTitle(R.string.app_name)
-		}
+		title = Info.m_strTitle ?: getString(R.string.app_name)
 
-		// WP を Map に追加
+		// WP マーカーを Map に追加
 		for (i in 0 until m_WayPoint.Size()) {
-			val MakerOpt = MarkerOptions()
-			MakerOpt.position(m_WayPoint.GetPoint(i))
-			MakerOpt.title(String.format("WP%d", i + 1))
-			MakerOpt.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE))
-			m_Markers.add(m_Map!!.addMarker(MakerOpt)!!)
+			val latLng = m_WayPoint.GetPoint(i)
+			val marker = Marker(mapView)
+			marker.setInfoWindowAnchor(0.5f, -1.0f)
+			marker.position = GeoPoint(latLng.latitude, latLng.longitude)
+			marker.title = String.format("WP%d", i + 1)
+			marker.setOnMarkerClickListener { m, _ ->
+				val wpIdx = m.title.substring(2).toInt() - 1
+				SetMoveCurWayPoint(wpIdx)
+				false
+			}
+			m_Markers.add(marker)
+			mapView.overlays.add(marker)
 		}
 
 		val fDipScale = applicationContext.resources.displayMetrics.density
 
-		// Line を Map に追加
-		Info.m_Polyline.color(-0xee9901)
-		Info.m_Polyline.width(6f * fDipScale)
-		m_Map!!.addPolyline(Info.m_Polyline)
+		// ポリラインを Map に追加
+		val polyline = Polyline(mapView)
+		polyline.outlinePaint.color = Color.rgb(0x11, 0x66, 0xFF)
+		polyline.outlinePaint.strokeWidth = 6f * fDipScale
 
+		// 吹き出しを表示しない設定
+		polyline.infoWindow = null
+
+		// タップイベントを無効化（イベントを消費して吹き出しを出さない）
+		polyline.setOnClickListener { _, _, _ ->
+			true // true を返すことでタップイベントを消費し、吹き出し処理をスキップ
+		}
+
+		val points = ArrayList<GeoPoint>()
+		val polylineOptions = Info.m_Polyline
+		if (polylineOptions != null && polylineOptions.points.isNotEmpty()) {
+			for (pt in polylineOptions.points) {
+				points.add(GeoPoint(pt.latitude, pt.longitude))
+			}
+		} else {
+			for (i in 0 until m_WayPoint.Size()) {
+				val pt = m_WayPoint.GetPoint(i)
+				points.add(GeoPoint(pt.latitude, pt.longitude))
+			}
+		}
+
+		polyline.setPoints(points)
+		m_RoutePolyline = polyline
+		mapView.overlays.add(polyline)
 		val isReverse = m_Pref?.getBoolean("key_ReverseOrder", false) ?: false
-		SetCurWayPoint(
-			if (iWayPoint >= 0) iWayPoint else if (isReverse) m_WayPoint.Size() - 1 else 0
-		)
-
-		// ルートが 180W をまたいでいたら，補正
+		// 経度180度またぎの補正
 		if (Info.m_dMaxLng - Info.m_dMinLng > 180) {
 			val tmp = Info.m_dMaxLng
 			Info.m_dMaxLng = Info.m_dMinLng
@@ -442,20 +447,25 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		}
 
 		// ルート全体に移動
-		m_Map!!.moveCamera(
-			CameraUpdateFactory.newLatLngBounds(
-				LatLngBounds.builder()
-					.include(LatLng(Info.m_dMaxLat, Info.m_dMaxLng))
-					.include(LatLng(Info.m_dMinLat, Info.m_dMinLng))
-					.build(),
-				(16f * fDipScale).toInt() // padding
-			)
-		)
+		val box = BoundingBox(Info.m_dMaxLat, Info.m_dMaxLng, Info.m_dMinLat, Info.m_dMinLng)
 
+		mapView.post {
+	
+			// 上部アクションバーや下部ボタンを覆わないよう余白(80dp相当)を考慮して拡大
+			val marginPx = (80f * fDipScale).toInt()
+			mapView.zoomToBoundingBox(box, false, marginPx)
+			mapView.invalidate()
+			
+			if (iWayPoint >= 0){
+				SetMoveCurWayPoint(iWayPoint)
+			}
+		}
+
+		mapView.invalidate()
 		return true
 	}
-
-	/*** Option menu  */
+	
+	/*** Option menu ***/
 	override fun onCreateOptionsMenu(menu: Menu): Boolean {
 		super.onCreateOptionsMenu(menu)
 		menuInflater.inflate(R.menu.wp_navi, menu)
@@ -511,7 +521,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		}
 	}
 
-	/*** GME URL intent	 */
+	/*** GME URL intent ***/
 	override fun onNewIntent(intent: Intent) {
 		if (bDebug) Log.d("WpNavi", "WpNavi::onNewIntent")
 		super.onNewIntent(intent)
@@ -522,7 +532,6 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		if (intent == null) return false
 		if (bDebug) Log.d("WpNavi", "DoIntent:Action:" + intent.action)
 
-		// notification から呼ばれた
 		if (intent.getBooleanExtra("quit_service", false)) {
 			if (bDebug) Log.d("WpNavi", "DoIntent:Killed by notification")
 			m_bQuitService = true
@@ -531,9 +540,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 
 		// URL フィルタに引っかかった
 		val strUrl = intent.dataString ?: return false
-		if (strUrl != null) return DownloadURL(strUrl)
-
-		return false
+		return DownloadURL(strUrl)
 	}
 
 	fun DownloadURL(strUrl: String): Boolean {
@@ -591,12 +598,8 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 				val cursor = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).query(query)
 
 				if (cursor.moveToFirst() && m_bDownloading) {
-					val status = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))
-					val reason = cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_REASON))
-					if (bDebug) {
-						Log.d("WpNavi", "BBRcv:status=$status")
-						Log.d("WpNavi", "BBRcf:reason=$reason")
-					}
+					val statusIndex = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+					val status = cursor.getInt(statusIndex)
 
 					if (status == DownloadManager.STATUS_SUCCESSFUL) {
 						m_bDownloading = false
@@ -644,7 +647,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		mReceiver = null
 	}
 
-	/*** Service  */
+	/*** Service ***/
 	private var mService: WpNaviService? = null
 
 	private val mConnection: ServiceConnection = object : ServiceConnection {
@@ -662,7 +665,6 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 					if (mService != null) when (Msg.what) {
 						WpNaviService.MSG_UPDATE_WP -> {
 							SetCurWayPoint(mService!!.iCurWayPoint)
-
 							OnLocationChanged(mService!!.m_Location!!)
 						}
 
@@ -730,23 +732,16 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		}
 	}
 
-	/*** 無電波モード	 */
+	/*** 無電波モード ***/
 	fun EnterNosigUI() {
 		window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
 		val btn = findViewById<Button>(R.id.buttonStartNavi)
-		btn.text = getText(R.string.button_stop_navi) as String
+		btn.setText(R.string.button_stop_navi)
 
-		if (m_Map != null) {
-			val camOld = m_Map!!.cameraPosition
-			m_fZoom = camOld.zoom
-
-			val camNew = CameraPosition.Builder()
-				.target(camOld.target)
-				.zoom(m_fNosigZoom)
-				.tilt(75f)
-				.build()
-			m_Map!!.moveCamera(CameraUpdateFactory.newCameraPosition(camNew))
+		m_MapView?.run {
+			m_fZoom = zoomLevelDouble
+			controller.setZoom(m_fNosigZoom)
 		}
 
 		if (bDebug) Log.d(
@@ -758,17 +753,7 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 	fun ExitNosigUI() {
 		window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-		if (m_Map != null) {
-			val camOld = m_Map!!.cameraPosition
-
-			val camNew = CameraPosition.Builder()
-				.target(camOld.target)
-				.zoom(m_fZoom)
-				.tilt(0f)
-				.bearing(0f)
-				.build()
-			m_Map!!.moveCamera(CameraUpdateFactory.newCameraPosition(camNew))
-		}
+		m_MapView?.controller?.setZoom(m_fZoom)
 
 		if (bDebug) Log.d(
 			"WpNavi",
@@ -776,23 +761,15 @@ class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 		)
 
 		val btn = findViewById<Button>(R.id.buttonStartNavi)
-		btn.text = getText(R.string.button_start_navi) as String
+		btn.setText(R.string.button_start_navi)
 	}
 
-	// 一定時間ごと地図位置更新
 	fun OnLocationChanged(location: Location) {
-		if (m_Map != null) {
-			val camOld = m_Map!!.cameraPosition
-
-			m_fNosigZoom = camOld.zoom
-
-			val camNew = CameraPosition.Builder()
-				.target(LatLng(location.latitude, location.longitude))
-				.zoom(camOld.zoom)
-				.tilt(75f)
-				.bearing(location.bearing)
-				.build()
-			m_Map!!.animateCamera(CameraUpdateFactory.newCameraPosition(camNew))
+		m_MapView?.run {
+			val geoPoint = GeoPoint(location.latitude, location.longitude)
+			m_fNosigZoom = zoomLevelDouble
+			controller.animateTo(geoPoint)
+			mapOrientation = -location.bearing
 		}
 	}
 
