@@ -21,6 +21,5 @@
 		android:icon="@android:drawable/ic_menu_preferences"
 		android:title="@string/text_Setting"
 		android:orderInCategory="30"
-		app:showAsAction="never" />
-	<item android:id="@+id/itemHelp" android:orderInCategory="40" android:title="@string/text_Help" android:icon="@android:drawable/ic_menu_help"></item>
+		app:showAsAction="ifRoom|withText" />
 </menu>

@@ -439,11 +439,6 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 			val intent = Intent(this@WpNaviActivity, WpNaviPreference::class.java)
 			startActivityForResult(intent, 0)
 			return true
-		} else if (id == R.id.itemHelp) {
-			val intent = Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.URL_OnlineManual)))
-			intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-			startActivity(intent)
-			return true
 		}
 
 		return super.onOptionsItemSelected(item)
@@ -677,8 +672,8 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 		intent.putExtra("WayPoint", m_WayPoint.Points)
 		mService!!.iCurWayPoint = m_iCurWayPoint
 		mService!!.iNextDistance = pref?.getInt("key_NextDistance", 50) ?: 50
-		mService!!.iWaitTime = (pref?.getInt("key_WaitTime", 60) ?: 60) * 100
-		mService!!.bKillByRoot = pref?.getBoolean("key_kill_by_root", false) ?: false
+		mService!!.iWaitTime = (pref?.getInt("key_WaitTime", 20) ?: 20) * 100
+		mService!!.bKillByRoot = pref?.getBoolean("key_kill_by_root", true) ?: true
 		mService!!.bReverseOrder = pref?.getBoolean("key_ReverseOrder", false) ?: false
 		mService!!.bRestartTest = pref?.getBoolean("key_kill_test", false) ?: false
 

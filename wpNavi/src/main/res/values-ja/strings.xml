@@ -10,7 +10,6 @@
     <string name="text_OpenKML">KMLを開く</string>
     <string name="text_OpenGME">マイマップ</string>
     <string name="text_Setting">設定...</string>
-    <string name="text_Help">オンラインマニュアル</string>
     <string name="text_Activated">WP%d へナビ中</string>
     <string name="text_KMLNotLoaded">KMLがロードされていません</string>
     <string name="text_DownloadFailed">KMLをダウンロードできません\n共有設定を見なおしてください</string>
@@ -22,5 +21,4 @@
     <string name="pref_kill_test">Google Maps キルテスト</string>
     <string name="perf_TrafficInfo">渋滞情報を表示</string>
     <string name="pref_ReverseOrder">逆順に案内</string>
-    <string name="URL_OnlineManual">https://sites.google.com/site/vsdforgps/home/waypoint-navi</string>
 </resources>

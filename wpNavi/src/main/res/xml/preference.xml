@@ -7,7 +7,7 @@
 		android:key="key_WaitTime"
 		android:dialogTitle="@string/pref_wait_time"
 		android:title="@string/pref_wait_time"
-		android:defaultValue="60"
+		android:defaultValue="20"
 		android:max="100"
 		robobunny:min="0"
 		robobunny:unitsRight=" x0.1sec"
@@ -22,6 +22,10 @@
 		robobunny:unitsRight="m"
 	/>
 	<CheckBoxPreference android:key="key_traffic_info" android:title="@string/perf_TrafficInfo" />
-	<CheckBoxPreference android:key="key_kill_by_root" android:title="@string/pref_kill_by_root" android:summary="@string/pref_kill_by_root_exp"/>
+	<CheckBoxPreference
+		android:defaultValue="true"
+		android:key="key_kill_by_root"
+		android:summary="@string/pref_kill_by_root_exp"
+		android:title="@string/pref_kill_by_root" />
 	<CheckBoxPreference android:key="key_kill_test" android:title="@string/pref_kill_test"/>
 </PreferenceScreen>
