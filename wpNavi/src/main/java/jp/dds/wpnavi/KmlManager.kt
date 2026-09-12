@@ -2,7 +2,6 @@ package jp.dds.wpnavi
 
 import android.util.Log
 import android.util.Xml
-import jp.dds.wpnavi.BuildConfig
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.overlay.Polyline
 import org.xmlpull.v1.XmlPullParser
@@ -149,7 +148,7 @@ class KmlManager {
 			// KMZ で失敗したので，KML を開く
 			if (zfIn != null) try {
 				zfIn.close()
-			} catch (e2: IOException) {
+			} catch (_: IOException) {
 			}
 
 			try {
@@ -242,7 +241,7 @@ class KmlManager {
 			Info.m_iErrorCode = R.string.text_InvalidKMLFormat
 			try {
 				fsIn!!.close()
-			} catch (e2: IOException) {
+			} catch (_: IOException) {
 			}
 			return Info
 		}
@@ -250,7 +249,7 @@ class KmlManager {
 		// close
 		try {
 			fsIn!!.close()
-		} catch (e: IOException) {
+		} catch (_: IOException) {
 		}
 
 		// 一応数チェック

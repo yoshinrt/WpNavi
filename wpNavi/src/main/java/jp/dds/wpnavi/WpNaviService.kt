@@ -155,7 +155,7 @@ class WpNaviService : Service() {
 		KillGMaps()
 		try {
 			Thread.sleep(iWaitTime.toLong())
-		} catch (e: InterruptedException) {
+		} catch (_: InterruptedException) {
 		}
 
 		// インテントを投げる

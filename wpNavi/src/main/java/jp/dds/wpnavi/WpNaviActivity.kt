@@ -437,7 +437,7 @@ class WpNaviActivity : AppCompatActivity() {
 		polyline.setPoints(points)
 		m_RoutePolyline = polyline
 		mapView.overlays.add(polyline)
-		val isReverse = m_Pref?.getBoolean("key_ReverseOrder", false) ?: false
+
 		// 経度180度またぎの補正
 		if (Info.m_dMaxLng - Info.m_dMinLng > 180) {
 			val tmp = Info.m_dMaxLng
@@ -548,7 +548,7 @@ class WpNaviActivity : AppCompatActivity() {
 
 		try {
 			File(strDstFile).delete()
-		} catch (e: Exception) {
+		} catch (_: Exception) {
 		}
 
 		if (bDebug) Log.d(
@@ -611,11 +611,11 @@ class WpNaviActivity : AppCompatActivity() {
 						val fileKml = File(strKmlFile)
 						try {
 							fileKml.delete()
-						} catch (e: Exception) {
+						} catch (_: Exception) {
 						}
 						try {
 							File(strTmpFile).renameTo(fileKml)
-						} catch (e: Exception) {
+						} catch (_: Exception) {
 						}
 						LoadKML(strKmlFile, -1)
 					} else {
