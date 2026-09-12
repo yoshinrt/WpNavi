@@ -2,7 +2,7 @@ package jp.dds.wpnavi
 
 import android.util.Log
 import android.util.Xml
-import jp.dds.dds_lib.BuildConfig
+import jp.dds.wpnavi.BuildConfig
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.overlay.Polyline
 import org.xmlpull.v1.XmlPullParser

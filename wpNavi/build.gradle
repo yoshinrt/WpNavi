@@ -35,6 +35,10 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    
+    buildFeatures {
+        buildConfig true
+    }
 }
 
 tasks.configureEach { task ->
@@ -44,7 +48,7 @@ tasks.configureEach { task ->
 }
 
 dependencies {
-    implementation project(':dds_lib')
+    implementation "androidx.preference:preference-ktx:1.2.1"
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'org.osmdroid:osmdroid-android:6.1.18'
     implementation 'com.google.android.gms:play-services-location:21.0.1'

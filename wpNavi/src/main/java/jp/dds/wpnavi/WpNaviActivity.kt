@@ -22,7 +22,6 @@ import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.os.Message
-import android.preference.PreferenceManager
 import android.util.Log
 import android.util.TypedValue
 import android.view.Menu
@@ -35,9 +34,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import jp.dds.dds_lib.BuildConfig
+import androidx.preference.PreferenceManager
 import jp.dds.wpnavi.WpNaviService.WpNaviServiceLocalBinder
-import org.osmdroid.config.Configuration as OsmConfiguration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -48,6 +46,7 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
 import java.io.FileOutputStream
+import org.osmdroid.config.Configuration as OsmConfiguration
 
 class WpNaviActivity : AppCompatActivity() {
 	private var m_iCurWayPoint = 0

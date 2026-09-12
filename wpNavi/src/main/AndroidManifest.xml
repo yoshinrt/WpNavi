@@ -45,6 +45,7 @@
 
 		<activity
 			android:name=".WpNaviPreference"
+			android:theme="@style/Theme.AppCompat.NoActionBar"
 			android:exported="false" />
 
 		<service
