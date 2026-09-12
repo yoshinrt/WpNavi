@@ -3,7 +3,6 @@ apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     compileSdkVersion 34
-
     namespace 'jp.dds.wpnavi'
 
     defaultConfig {
@@ -17,7 +16,7 @@ android {
     buildTypes {
         release {
             minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
@@ -25,13 +24,6 @@ android {
         disable 'MissingTranslation'
     }
 
-    task('incrementVersionCode') {
-        doLast {
-            exec {
-                commandLine 'cscript', 'd:/dds/bin/scripter.wsf', '-w', '../../set_git_version.pl', 'src/main/AndroidManifest.xml'
-            }
-        }
-    }
     kotlinOptions {
         jvmTarget = '1.8'
     }
@@ -41,16 +33,9 @@ android {
     }
 }
 
-tasks.configureEach { task ->
-    if (task.name == 'generateReleaseBuildConfig') {
-        task.dependsOn 'incrementVersionCode'
-    }
-}
-
 dependencies {
-    implementation "androidx.preference:preference-ktx:1.2.1"
+    implementation 'androidx.preference:preference-ktx:1.2.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'org.osmdroid:osmdroid-android:6.1.18'
-    implementation 'com.google.android.gms:play-services-location:21.0.1'
     implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'org.osmdroid:osmdroid-android:6.1.18'
 }
