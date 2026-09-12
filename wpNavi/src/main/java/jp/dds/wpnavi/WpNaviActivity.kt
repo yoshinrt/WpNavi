@@ -30,6 +30,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -44,14 +45,11 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import jp.dds.dds_lib.BuildConfig
-import jp.dds.dds_lib.FileOpenDialog
-import jp.dds.dds_lib.FileOpenDialog.FileOpenDialogListener
 import jp.dds.wpnavi.WpNaviService.WpNaviServiceLocalBinder
-import java.io.DataOutputStream
 import java.io.File
-import kotlin.concurrent.thread
+import java.io.FileOutputStream
 
-class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCallback {
+class WpNaviActivity : AppCompatActivity(), OnMapReadyCallback {
 	private var m_iCurWayPoint = 0
 	private val m_WayPoint = KmlManager()
 	private var m_Pref: SharedPreferences? = null
@@ -63,6 +61,20 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 
 	private var m_Map: GoogleMap? = null
 	private val m_Markers = ArrayList<Marker>()
+
+	// Android 標準ファイルピッカー (SAF) のランチャー
+	private val kmlPickerLauncher = registerForActivityResult(
+		ActivityResultContracts.OpenDocument()
+	) { uri: Uri? ->
+		uri?.let {
+			val file = copyUriToCacheFile(it)
+			if (file != null) {
+				LoadKML(file.absolutePath, -1)
+			} else {
+				Toast.makeText(this, R.string.text_KMLNotLoaded, Toast.LENGTH_SHORT).show()
+			}
+		}
+	}
 
 	/*** Activity management  */
 	@Suppress("unused")
@@ -119,7 +131,7 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 				"www.google.com"
 			)
 
-			if(setAppLinksAsRoot(myPackage, *domains)) {
+			if (setAppLinksAsRoot(myPackage, *domains)) {
 				if (bDebug) Log.d("WpNavi", "App Links root configuration succeeded.")
 				pref.edit().putBoolean("key_app_links_configured", true).apply()
 			} else {
@@ -145,6 +157,7 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 			false
 		}
 	}
+
 	private fun checkNotificationPermission() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 			if (ContextCompat.checkSelfPermission(
@@ -229,11 +242,6 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 		var iNewWp = m_iCurWayPoint + 1
 		if (iNewWp >= m_WayPoint.Size()) iNewWp = 0
 		SetMoveCurWayPoint(iNewWp)
-	}
-
-	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-		if (bDebug) Log.d("WpNavi", "WpNavi::onActivityResult")
-		super.onActivityResult(requestCode, resultCode, data)
 	}
 
 	override fun onDestroy() {
@@ -458,20 +466,16 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 		val id = item.itemId
 
 		if (id == R.id.itemLoadKML) {
-			val fod = FileOpenDialog(
-				this@WpNaviActivity,
-				object : FileOpenDialogListener {
-					override fun onFileSelected(file: File?) {
-						this@WpNaviActivity.onFileSelected(file)
-					}
-				},
-				FileOpenDialog.MODE_FILE
-			) { pathname ->
-				pathname.name.endsWith(".kml") ||
-						pathname.name.endsWith(".kmz") ||
-						pathname.name.endsWith(".xml")
-			}
-			fod.openDirectory(m_strKmlFile)
+			// KML / KMZ / XML / オクテットストリーム（汎用バイナリ）を許可
+			kmlPickerLauncher.launch(
+				arrayOf(
+					"application/vnd.google-earth.kml+xml",
+					"application/vnd.google-earth.kmz",
+					"text/xml",
+					"application/xml",
+					"*/*"
+				)
+			)
 			return true
 		} else if (id == R.id.itemOpenGME) {
 			val intent =
@@ -488,9 +492,22 @@ class WpNaviActivity : AppCompatActivity(), FileOpenDialogListener, OnMapReadyCa
 		return super.onOptionsItemSelected(item)
 	}
 
-	override fun onFileSelected(file: File?) {
-		file?.let {
-			LoadKML(it.absolutePath, -1)
+	/**
+	 * ピッカーで選択された Uri から一時ファイルを生成し File オブジェクトを取得するヘルパー関数
+	 */
+	private fun copyUriToCacheFile(uri: Uri): File? {
+		return try {
+			val inputStream = contentResolver.openInputStream(uri) ?: return null
+			val outputFile = File(cacheDir, "selected_route.kml")
+			FileOutputStream(outputFile).use { output ->
+				inputStream.use { input ->
+					input.copyTo(output)
+				}
+			}
+			outputFile
+		} catch (e: Exception) {
+			if (bDebug) Log.e("WpNavi", "Failed to copy file from Uri", e)
+			null
 		}
 	}
 
