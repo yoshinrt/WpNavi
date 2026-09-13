@@ -399,17 +399,26 @@ class WpNaviActivity : AppCompatActivity() {
 
 		val mapView = m_MapView ?: return false
 
-		// 既存オーバーレイ削除
-		m_Markers.forEach { mapView.overlays.remove(it) }
+		// 開いている吹き出しを閉じてから既存オーバーレイを削除
+		m_Markers.forEach { marker ->
+			marker.closeInfoWindow()
+			mapView.overlays.remove(marker)
+		}
 		m_Markers.clear()
-		m_RoutePolyline?.let { mapView.overlays.remove(it) }
+
+		// Polyline 側の吹き出しも念のため閉じて削除
+		m_RoutePolyline?.let {
+			it.closeInfoWindow()
+			mapView.overlays.remove(it)
+		}
+		m_RoutePolyline = null
 
 		m_iCurWayPoint = 0
 		m_strKmlFile = strKmlFile
 
 		// タイトル設定
 		title = Info.m_strTitle ?: getString(R.string.app_name)
-
+		
 		// WP マーカーを Map に追加
 		for (i in 0 until m_WayPoint.Size()) {
 			val latLng = m_WayPoint.GetPoint(i)
