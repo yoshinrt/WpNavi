@@ -367,6 +367,27 @@ class WpNaviActivity : AppCompatActivity() {
 		}
 	}
 
+	private fun selectNearestWayPoint(tapPoint: GeoPoint) {
+		if (m_WayPoint.Size() == 0) return
+		var nearestIndex = 0
+		var minDistance = Float.MAX_VALUE
+		val results = FloatArray(1)
+
+		for (i in 0 until m_WayPoint.Size()) {
+			val pt = m_WayPoint.GetPoint(i)
+			Location.distanceBetween(
+				tapPoint.latitude, tapPoint.longitude,
+				pt.latitude, pt.longitude,
+				results
+			)
+			if (results[0] < minDistance) {
+				minDistance = results[0]
+				nearestIndex = i
+			}
+		}
+		SetMoveCurWayPoint(nearestIndex)
+	}
+
 	/*** Load KML ***/
 	fun LoadKML(strKmlFile: String?, iWayPoint: Int): Boolean {
 		val nextDist = m_Pref?.getInt("key_NextDistance", 50) ?: 50
@@ -398,9 +419,8 @@ class WpNaviActivity : AppCompatActivity() {
 			marker.position = GeoPoint(latLng.latitude, latLng.longitude)
 			marker.title = String.format("WP%d", i + 1)
 			marker.setOnMarkerClickListener { m, _ ->
-				val wpIdx = m.title.substring(2).toInt() - 1
-				SetMoveCurWayPoint(wpIdx)
-				false
+				selectNearestWayPoint(m.position)
+				true
 			}
 			m_Markers.add(marker)
 			mapView.overlays.add(marker)
@@ -416,9 +436,10 @@ class WpNaviActivity : AppCompatActivity() {
 		// 吹き出しを表示しない設定
 		polyline.infoWindow = null
 
-		// タップイベントを無効化（イベントを消費して吹き出しを出さない）
-		polyline.setOnClickListener { _, _, _ ->
-			true // true を返すことでタップイベントを消費し、吹き出し処理をスキップ
+		// ポリラインタップ時に最も近い WayPoint を選択
+		polyline.setOnClickListener { _, _, eventPos ->
+			selectNearestWayPoint(eventPos)
+			true
 		}
 
 		val points = ArrayList<GeoPoint>()
@@ -449,13 +470,13 @@ class WpNaviActivity : AppCompatActivity() {
 		val box = BoundingBox(Info.m_dMaxLat, Info.m_dMaxLng, Info.m_dMinLat, Info.m_dMinLng)
 
 		mapView.post {
-	
+
 			// 上部アクションバーや下部ボタンを覆わないよう余白(80dp相当)を考慮して拡大
 			val marginPx = (80f * fDipScale).toInt()
 			mapView.zoomToBoundingBox(box, false, marginPx)
 			mapView.invalidate()
-			
-			if (iWayPoint >= 0){
+
+			if (iWayPoint >= 0) {
 				SetMoveCurWayPoint(iWayPoint)
 			}
 		}
@@ -463,7 +484,7 @@ class WpNaviActivity : AppCompatActivity() {
 		mapView.invalidate()
 		return true
 	}
-	
+
 	/*** Option menu ***/
 	override fun onCreateOptionsMenu(menu: Menu): Boolean {
 		super.onCreateOptionsMenu(menu)
