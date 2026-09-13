@@ -43,7 +43,7 @@ Create a route with waypoints using [Google My Maps](https://www.google.com/maps
   - Tap the "Open File (floppy disk icon)" at the top-right of the screen to bring up the file picker, then select your saved KMZ file.
 
 ### 3. Starting Navigation
-1. Use the "Previous" and "Next" buttons on the screen to select your starting waypoint.
+1. Use the "Previous" and "Next" buttons on the screen to select the next waypoint.
 1. Tap the "Start Navigation" button to launch Google Maps Navigation.
 1. Each time you reach a waypoint, the app will automatically switch and launch navigation to the next destination.
 
@@ -92,6 +92,6 @@ WpNavi は，これらの問題を解決します．
   - 画面右上の「ファイル開く（フロッピーディスクアイコン）」をタップしてファイル選択画面を開き，保存した KMZ ファイルを選択します．
 
 ### 3. ナビの開始
-1. 画面上の「前」「次」ボタンで出発したい経由地を選択します．
+1. 画面上の「前」「次」ボタンで次に向かう経由地を選択します．
 1. 「ナビ開始」ボタンを押すと Google マップナビが起動します．
 1. 経由地に接近・到着するたびに，自動的に次の経由地への案内へ切り替わります．
