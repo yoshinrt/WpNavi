@@ -1,57 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
 	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:id="@+id/LinearLayout1"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical" >
-	
-	<LinearLayout
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		android:id="@+id/LinearLayout1"
+
+	<FrameLayout
 		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		android:orientation="vertical" >
-		
+		android:layout_height="0dp"
+		android:layout_weight="1" >
+
 		<org.osmdroid.views.MapView
 			android:id="@+id/map"
 			android:layout_width="match_parent"
-			android:layout_height="0dp"
-			android:layout_weight="1" />
-		
-		<LinearLayout
-			android:id="@+id/linearLayout2"
-			android:layout_width="match_parent"
+			android:layout_height="match_parent" />
+
+		<ImageButton
+			android:id="@+id/fabMyLocation"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:layout_gravity="bottom|end"
+			android:layout_margin="16dp"
+			android:background="@android:drawable/btn_default"
+			android:contentDescription="Move to current position"
+			android:onClick="onClickMyLocation"
+			android:src="@android:drawable/ic_menu_mylocation" />
+	</FrameLayout>
+
+	<LinearLayout
+		android:id="@+id/linearLayout2"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:gravity="bottom"
+		android:background="#80000000"
+		android:orientation="horizontal" >
+
+		<Button
+			android:id="@+id/buttonPrevWp"
+			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:gravity="bottom"
-			android:background="#80000000"
-			android:layout_alignParentBottom="true"
-			android:orientation="horizontal" >
-	
-			<Button
-				android:id="@+id/buttonPrevWp"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:onClick="onClickPrevWp"
-				android:text="@string/button_prevwp"
-				android:allowUndo="false"/>
-	
-			<Button
-				android:id="@+id/buttonStartNavi"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:onClick="onClickStartNavi"
-				android:text="@string/button_start_navi" />
-	
-			<Button
-				android:id="@+id/buttonNextWp"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:onClick="onClickNextWp"
-				android:text="@string/button_nextwp" />
-		</LinearLayout>
+			android:layout_weight="1"
+			android:onClick="onClickPrevWp"
+			android:text="@string/button_prevwp"
+			android:allowUndo="false"/>
+
+		<Button
+			android:id="@+id/buttonStartNavi"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:onClick="onClickStartNavi"
+			android:text="@string/button_start_navi" />
+
+		<Button
+			android:id="@+id/buttonNextWp"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:onClick="onClickNextWp"
+			android:text="@string/button_nextwp" />
 	</LinearLayout>
- </LinearLayout>
+</LinearLayout>

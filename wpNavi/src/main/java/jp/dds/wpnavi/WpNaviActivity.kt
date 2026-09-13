@@ -26,9 +26,11 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.Menu
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -320,9 +322,40 @@ class WpNaviActivity : AppCompatActivity() {
 
 	private fun EnableMyLocationOverlay() {
 		val mapView = m_MapView ?: return
-		m_LocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mapView)
-		m_LocationOverlay?.enableMyLocation()
+		m_LocationOverlay = object : MyLocationNewOverlay(GpsMyLocationProvider(this), mapView) {
+			override fun onTouchEvent(event: MotionEvent?, mapView: MapView?): Boolean {
+				val result = super.onTouchEvent(event, mapView)
+				updateMyLocationButtonState()
+				return result
+			}
+		}.apply {
+			enableMyLocation()
+		}
 		mapView.overlays.add(m_LocationOverlay)
+		updateMyLocationButtonState()
+	}
+
+	fun onClickMyLocation(v: View?) {
+		val overlay = m_LocationOverlay ?: return
+
+		if (overlay.isFollowLocationEnabled) {
+			overlay.disableFollowLocation()
+		} else {
+			overlay.enableFollowLocation()
+			m_MapView?.controller?.setZoom(16.0)
+		}
+		updateMyLocationButtonState()
+	}
+
+	private fun updateMyLocationButtonState() {
+		val btn = findViewById<ImageButton>(R.id.fabMyLocation) ?: return
+		val isFollowing = m_LocationOverlay?.isFollowLocationEnabled == true
+
+		if (isFollowing) {
+			btn.setColorFilter(Color.BLUE)
+		} else {
+			btn.clearColorFilter()
+		}
 	}
 
 	override fun onRequestPermissionsResult(
@@ -418,7 +451,7 @@ class WpNaviActivity : AppCompatActivity() {
 
 		// タイトル設定
 		title = Info.m_strTitle ?: getString(R.string.app_name)
-		
+
 		// WP マーカーを Map に追加
 		for (i in 0 until m_WayPoint.Size()) {
 			val latLng = m_WayPoint.GetPoint(i)
