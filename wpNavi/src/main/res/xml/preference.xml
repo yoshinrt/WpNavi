@@ -22,7 +22,6 @@
 		app:min="10"
 		app:showSeekBarValue="true"
 	/>
-	<CheckBoxPreference android:key="key_traffic_info" android:title="@string/perf_TrafficInfo" />
 	<CheckBoxPreference
 		android:defaultValue="true"
 		android:key="key_kill_by_root"
