@@ -288,8 +288,7 @@ class WpNaviActivity : AppCompatActivity() {
 		if (theme.resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
 			val topPadding =
 				TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
-			val bottomPadding = findViewById<View>(R.id.buttonPrevWp).height
-			m_MapView?.setPadding(0, topPadding, 0, bottomPadding)
+			m_MapView?.setPadding(0, topPadding, 0, 0)
 		}
 
 		if (m_strKmlFile != null) LoadKML(m_strKmlFile, m_iCurWayPoint)
@@ -470,9 +469,8 @@ class WpNaviActivity : AppCompatActivity() {
 		val box = BoundingBox(Info.m_dMaxLat, Info.m_dMaxLng, Info.m_dMinLat, Info.m_dMinLng)
 
 		mapView.post {
-
 			// 上部アクションバーや下部ボタンを覆わないよう余白(80dp相当)を考慮して拡大
-			val marginPx = (80f * fDipScale).toInt()
+			val marginPx = (32f * fDipScale).toInt()
 			mapView.zoomToBoundingBox(box, false, marginPx)
 			mapView.invalidate()
 
