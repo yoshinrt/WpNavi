@@ -342,7 +342,6 @@ class WpNaviActivity : AppCompatActivity() {
 			overlay.disableFollowLocation()
 		} else {
 			overlay.enableFollowLocation()
-			m_MapView?.controller?.setZoom(16.0)
 		}
 		updateMyLocationButtonState()
 	}
